@@ -17,16 +17,7 @@
 
 ### 1. Optimale balans tussen complexiteit en beheersbaarheid
 
-Bij het kiezen van een module voor een compliance-audit is omvang een kritische factor. Te eenvoudig en er valt weinig te vinden; te groot en de scope wordt onbeheersbaar. De auditlog-module zit precies in het juiste midden:
-
-| Module             | Cycl. complexiteit | Java-regels | Bestanden |
-|--------------------|--------------------|-------------|-----------|
-| oauth2login        | 113 *(te simpel)*  | 1.528       | 26        |
-| attachments        | 258 *(te simpel)*  | 3.506       | 31        |
-| **auditlog**       | **633** ✓          | **4.793**   | **40**    |
-| idgen              | 716                | 6.540       | 86        |
-| htmlformentry      | 5.851 *(te groot)* | 35.524      | 281       |
-| legacyui           | 5.934 *(te groot)* | 35.077      | 388       |
+Bij het kiezen van een module voor een compliance-audit is omvang een kritische factor. Te eenvoudig en er valt weinig te vinden; te groot en de scope wordt onbeheersbaar. De auditlog-module zit precies in het juiste midden.
 
 Met een cyclomatische complexiteit van **633** zijn er voldoende vertakkingen, lussen en condities om zinvolle bevindingen te doen, maar blijft de module volledig doorgrondbaar binnen de beschikbare tijd. De COCOMO-schatting van **7,08 maanden** en een geschatte ontwikkelwaarde van **$174.083** onderstreept dat dit een substantieel, maar goed afgebakend stuk software is.
 
