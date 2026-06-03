@@ -246,7 +246,7 @@ public enum Action {
 
 Raadpleging van patiëntgegevens via de applicatie wordt nooit gelogd. Dit is een directe schending van NEN 7510-2 A.8.15, dat vereist dat ook _toegang tot_ (lees: raadpleging van) gegevens wordt bijgehouden.
 
-**Bevinding 12 — Standaard niets gelogd (❌)**
+**Bevinding 12 - Standaard niets gelogd (❌)**
 
 ```xml
 <!-- config.xml : 48–52 -->
