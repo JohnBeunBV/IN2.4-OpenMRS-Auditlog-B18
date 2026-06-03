@@ -1,11 +1,11 @@
 version: "3.9"
 
 services:
-
+ 
   openmrs:
     restart: always
     expose:
-      - "8080" 
+      - "8080"     # Alleen intern; verkeer via Nginx
     environment:
       OMRS_JAVA_SERVER_OPTS: >-
         -Dfile.encoding=UTF-8
@@ -15,12 +15,12 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
-
+ 
   db:
     restart: always
     security_opt:
       - no-new-privileges:true
-
+ 
   proxy:
     image: nginx:1.27.4-alpine
     container_name: auditlog-proxy

@@ -13,8 +13,7 @@
 | **A**cceptatie | *(zie noot)* | *(extern)* | UAT door stakeholders |
 | **P**roductie | `main` | 443 (HTTPS) | Live systeem |
 
-> **Noot:** Acceptatie is in deze sprint nog niet ingericht; de pipeline
-> biedt ruimte om later een `acceptance` GitHub Environment toe te voegen.
+> **Noot:** Acceptatie is op dit moment nog niet aanwezig.
 
 ---
 
@@ -50,10 +49,10 @@
 mvn clean package
 
 # 2. Kopieer .omod naar build/
-cp omod/target/auditlog-*.omod build/auditlog.omod
+copy omod/target/auditlog-*.omod build/auditlog.omod
 
 # 3. Maak .env aan op basis van het sjabloon
-cp config/dev/.env.example config/dev/.env
+copy config/dev/.env.example config/dev/.env
 # Pas wachtwoorden aan in config/dev/.env
 
 # 4. Start de DEV-omgeving
@@ -97,10 +96,3 @@ Build & Unit Tests
 | A.12.1 Wijzigingsbeheer | Alle deploys via CI/CD; geen handmatige deploys in prod |
 
 ---
-
-## Vereisten
-
-- Docker ≥ 24.x
-- Docker Compose V2 (`docker compose`, niet `docker-compose`)
-- Java 8 (voor Maven build)
-- GitHub repository met branch protection op `main`
