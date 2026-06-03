@@ -261,7 +261,7 @@ Raadpleging van patiëntgegevens via de applicatie wordt nooit gelogd. Dit is ee
 
 Na installatie zonder extra configuratie legt de module **geen enkele** wijziging vast. Er is geen documentatie of activeringscheck die beheerders hierop attendeert.
 
-**Bevinding 13 — IP-adres en sessie-ID ontbreken (❌)**
+**Bevinding 13 - IP-adres en sessie-ID ontbreken (❌)**
 
 ```java
 // AuditLog.java — geen van de volgende velden bestaat:
