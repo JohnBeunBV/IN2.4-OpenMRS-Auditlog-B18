@@ -6,9 +6,42 @@ target/
 *.war
 *.ear
 
+# Build outputs
+build/
+dist/
+out/
+
+# Node
+node_modules/
+
+# Test output
+test-results/
+coverage/
+
+# Docker volumes
+.docker-volumes/
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+*.tmp
+
+# Local environment and secrets
+local.properties
+secrets.properties
+.env
+.env.local
+.env.*.local
+*.local
+
+# We commit examples/documentation only (without real values):
+# .env.dev, .env.test, .env.prod
+
 # IDEs
 .idea/
 .vscode/
+.vscode/settings.json
 *.iml
 *.ipr
 *.iws
@@ -19,22 +52,3 @@ target/
 # OS files
 .DS_Store
 Thumbs.db
-
-# Logs and temporary files
-*.log
-logs/
-tmp/
-*.tmp
-
-# Local environment and secrets
-local.properties
-.env
-*.local
-secrets.properties
-
-# Build outputs
-build/
-out/
-
-# Node
-node_modules/
