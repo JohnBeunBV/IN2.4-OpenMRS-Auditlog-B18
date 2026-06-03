@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+
+  openmrs:
+    ports:
+      - "8081:8080"
+
+  selenium:
+    image: selenium/standalone-chromium:4.21.0-20240522
+    container_name: auditlog-selenium
+    shm_size: "2gb"
+    ports:
+      - "4444:4444"
+    networks:
+      - auditlog-net

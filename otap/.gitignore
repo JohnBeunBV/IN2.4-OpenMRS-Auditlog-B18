@@ -1,0 +1,21 @@
+# ============================================================
+# .gitignore – OTAP configuratie
+# ============================================================
+
+# Omgevingsvariabelen met secrets – NOOIT committen
+config/dev/.env
+config/test/.env
+config/prod/.env
+
+# Gebouwde artifacts
+build/
+*.omod
+
+# Docker runtime-bestanden
+docker/dev/.env
+docker/test/.env
+docker/prod/.env
+
+# OS-bestanden
+.DS_Store
+Thumbs.db
