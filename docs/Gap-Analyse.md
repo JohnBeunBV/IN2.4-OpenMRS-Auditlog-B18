@@ -234,7 +234,7 @@ private String      moduleVersion;
 private Blob        serializedData; // oude/nieuwe waarden
 ```
 
-**Bevinding 11 — Enum `Action` mist READ (❌)**
+**Bevinding 11 - Enum `Action` mist READ (❌)**
 
 ```java
 // AuditLog.java : Action enum
