@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ 
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog/1.9"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog/1.9
+                  http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-1.9.xsd">
+ 
+    <!--
+        See http://www.liquibase.org/manual/home#available_database_refactorings
+        for a list of supported elements and attributes
+    -->
+ 	<changeSet id="auditlog-20120418-2058" author="wyclif">
+ 		<preConditions onFail="MARK_RAN">
+			<not><tableExists tableName="auditlog_audit_log" /></not>
+		</preConditions>
+		<comment>Adding auditlog_audit_log table</comment>
+		<createTable tableName="auditlog_audit_log">
+			<column name="audit_log_id" type="int" autoIncrement="true" >
+				<constraints nullable="false" primaryKey="true" />
+			</column>			
+			<column name="type" type="varchar(512)"><constraints nullable="false" /></column>
+			<column name="identifier" type="varchar(255)"><constraints nullable="false" /></column>
+			<column name="action" type="varchar(50)"><constraints nullable="false" /></column>
+			<column name="user_id" type="int" />
+			<column name="serialized_data" type="longblob" />
+			<column name="date_created" type="DATETIME"><constraints nullable="false" /></column>
+            <column name="openmrs_version" type="varchar(50)"><constraints nullable="false" /></column>
+            <column name="module_version" type="varchar(50)"><constraints nullable="false" /></column>
+			<column name="parent_auditlog_id" type="int" />
+			<column name="uuid" type="varchar(38)"><constraints nullable="false" unique="true" /></column>
+		</createTable>
+		<addForeignKeyConstraint constraintName="authenticated_user" 
+		 	baseTableName="auditlog_audit_log" baseColumnNames="user_id"   
+		 	referencedTableName="users" referencedColumnNames="user_id" />
+ 	</changeSet>
+ 
+</databaseChangeLog>
