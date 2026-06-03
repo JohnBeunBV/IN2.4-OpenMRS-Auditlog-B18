@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<module configVersion="1.2">
+
+	<!-- Module Properties -->
+	<id>${project.parent.artifactId}</id>
+	<name>${project.parent.name}</name>
+	<version>${project.parent.version}</version>
+	<package>${project.parent.groupId}.${project.parent.artifactId}</package>
+	<author>Wyclif</author>
+	<description>
+		${project.parent.description}
+	</description>
+	<updateURL>https://dev.openmrs.org/modules/download/${project.parent.artifactId}/update.rdf</updateURL>
+	<require_version>${openMRSVersion}</require_version>
+	<!-- / Module Properties -->
+	
+	<!-- Module Activator -->
+	<activator>${project.parent.groupId}.${project.parent.artifactId}.AuditLogActivator</activator>
+	
+	
+	<!-- Adds link to admin page -->
+	<extension>
+		<point>org.openmrs.admin.list</point>
+		<class>${project.parent.groupId}.${project.parent.artifactId}.extension.html.AdminList</class>
+	</extension>
+	
+	<!-- DWR -->
+	<dwr>
+		<allow>
+			<convert converter="bean" match="org.openmrs.module.auditlog.web.dwr.AuditLogDetails"/>
+			<create creator="new" javascript="DWRAuditLogService">
+				<param name="class" value="org.openmrs.module.auditlog.web.dwr.DWRAuditLogService" />
+				<include method="getAuditLogDetails"/>
+			</create>
+		</allow>	
+		<signatures>
+			<![CDATA[
+				import org.openmrs.module.auditlog.web.dwr.DWRAuditLogService;
+				
+				DWRAuditLogService.getAuditLogDetails(String auditLogUuid);
+			]]>
+		</signatures>
+	</dwr>
+	
+	<!-- Global properties -->
+	<globalProperty>
+		<property>${project.parent.artifactId}.auditingStrategy</property>
+		<defaultValue>NONE</defaultValue>
+		<description>
+			Specifies the auditing strategy to be used by the audit log module, allowed values are:
+			ALL, ALL_EXCEPT, NONE, NONE_EXCEPT
+		</description>
+	</globalProperty>
+
+    <globalProperty>
+        <property>${project.parent.artifactId}.storeLastStateOfDeletedItems</property>
+        <defaultValue>false</defaultValue>
+        <description>
+            Specifies whether the last states of deleted items should be serialized and
+            stored in the DB, defaults to false
+        </description>
+    </globalProperty>
+
+    <globalProperty>
+        <property>${project.parent.artifactId}.exceptions</property>
+        <description>
+            Specifies the fully qualified java class names of domain objects for which to maintain
+            an audit trail when the auditing strategy is set to NONE_EXCEPT otherwise specifies the
+            class names of objects for which not to maintain an audit log, when the auditing strategy
+            is set to ALL_EXCEPT
+        </description>
+    </globalProperty>
+	
+	<!-- Maps hibernate file's, if present -->
+	<mappingFiles>
+		AuditLog.hbm.xml			
+	</mappingFiles>
+
+	<!-- Internationalization -->
+	<!-- All message codes should start with ${project.parent.artifactId}. -->
+	<messages>
+		<lang>en</lang>
+		<file>messages.properties</file>
+	</messages>
+	<!-- /Internationalization -->
+
+    <privilege>
+        <name>Get Audit Logs</name>
+        <description>Able to get audit logs</description>
+    </privilege>
+
+    <privilege>
+        <name>Get Audit Strategy</name>
+        <description>Able to get audit strategy</description>
+    </privilege>
+
+    <privilege>
+        <name>Get Items</name>
+        <description>Able to get any item from the database via the audit log</description>
+    </privilege>
+
+    <privilege>
+        <name>Check For Audited Items</name>
+        <description>Able to check if a given type is audited</description>
+    </privilege>
+
+    <privilege>
+        <name>Manage Audit Log</name>
+        <description>Able to get manage the audit log</description>
+    </privilege>
+
+</module>
+
