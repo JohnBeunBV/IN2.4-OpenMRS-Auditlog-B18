@@ -4,245 +4,279 @@
 
 |                    |                                                           |
 | ------------------ | --------------------------------------------------------- |
-| **Opgesteld door** | Groep B18 (JohnBeunBV / IN2.4-OpenMRS-Auditlog-B18)       |
-| **Moduleversie**   | auditlog v1.1-SNAPSHOT                                    |
+| **Opgesteld door** | Groep B18 — JohnBeunBV / IN2.4-OpenMRS-Auditlog-B18       |
+| **Module**         | openmrs-module-auditlog v1.1-SNAPSHOT                     |
+| **Repository**     | https://github.com/JohnBeunBV/IN2.4-OpenMRS-Auditlog-B18  |
 | **Normreferentie** | NEN 7510-2:2024 (≡ ISO/IEC 27002:2022 + zorgtoepassingen) |
-| **Documentdatum**  | 04 juni 2026                                              |
+| **Datum**          | 04 juni 2026                                              |
 | **Status**         | Concept                                                   |
 
 ---
 
 ## 1. Inleiding
 
-Dit document vormt het mini-complianceverslag voor de beveiligingsaudit van de `openmrs-module-auditlog`-module in het kader van het IN2.4-project. Voor elk relevant NEN 7510-2:2024-beheersingsmaatregel (control) is vastgesteld:
+Dit document beschrijft hoe de beveiligingsmaatregelen op de GitHub-repository van groep B18
+aantoonbaar voldoen aan de NEN 7510-2:2024-controls. De structuur per rij is:
 
-1. **Wat de module feitelijk levert** — gebaseerd op codeanalyse van de bronbestanden in de zip.
-2. **Welke pipeline-maatregel** de control automatisch bewaakt of toetst in de CI/CD-pijplijn (GitHub Actions).
-3. **Welk bewijs** daarvoor bestaat of gecreëerd moet worden.
-4. **De compliance-status** op dit moment: ✅ Voldoet · ⚠️ Deels · ❌ Ontbreekt.
+> **NEN 7510-2 control → concrete GitHub/pipeline-maatregel → bewijs → compliance-status**
 
-De geselecteerde controls zijn die controls waarop een auditlog-module _directe verantwoordelijkheid_ draagt of waarbij code-kwetsbaarheden aantoonbaar zijn gevonden.
+De maatregelen zijn onderverdeeld in drie categorieën die overeenkomen met de ingerichte
+GitHub-beveiliging:
 
----
+| Categorie                     | Maatregelen                                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **A — GitHub Security-tab**   | Security advisories, Dependabot, Code scanning, Secret scanning, Code quality, Security policy, Private vulnerability reporting |
+| **B — Repository-governance** | Signing keys (commit-ondertekening), 2FA (tweefactorauthenticatie), Teams-rollen (RBAC)                                         |
+| **C — Resterende gaps**       | Controls die nog niet worden afgedekt door bovenstaande maatregelen                                                             |
 
-## 2. Toelichting op de module-architectuur
-
-De module bestaat uit drie lagen:
-
-| Laag            | Sleutelbron                                            | Functie                                                                                                                        |
-| --------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Interceptie** | `HibernateAuditLogInterceptor.java`                    | Onderschept alle Hibernate-sessie-events (INSERT / UPDATE / DELETE) via `EmptyInterceptor`                                     |
-| **Entiteit**    | `AuditLog.java`                                        | Datamodel: vastgelegd worden `type`, `identifier`, `action`, `user`, `dateCreated`, `serializedData` (JSON blob met oud/nieuw) |
-| **Toegang**     | `AuditLogService.java` + `ViewAuditLogController.java` | Service-laag beveiligd met `@Authorized`; weblaag bevat kwetsbaarheden (zie §3)                                                |
-| **Config**      | `config.xml`                                           | Standaardstrategie = **NONE** — logging staat standaard **uit**                                                                |
-
----
-
-## 3. Compliance-tabel
-
-### 3.1 NEN 7510-2:2024 §8.15 — Logboekregistratie
-
-> _Logboeken die gebruikersactiviteiten, uitzonderingen, fouten en beveiligingsgebeurtenissen registreren, moeten worden aangemaakt, bewaard en regelmatig worden beoordeeld._
-
-| Aspect                          | Bevinding (code)                                                                                                            | Pipeline-maatregel                                                                                | Bewijs                                                            | Status |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------ |
-| **Vastgelegde velden**          | `AuditLog.java`: `type`, `identifier`, `action` (CREATED/UPDATED/DELETED), `user`, `dateCreated`, `serializedData` aanwezig | Statische analyse (Checkstyle / SonarQube) verifieert aanwezigheid verplichte velden              | Klasse-definitie + Liquibase-schema (`liquibase.xml`)             | ✅     |
-| **Gebruikerskoppeling**         | `user_id` in schema FK naar `users`-tabel; **nullable** — anonieme systeemoperaties worden **niet** verplicht geattribueerd | Pipeline-testcase: `AuditLogServiceTest` → assertNotNull(auditLog.getUser())                      | Ontbreekt in testset; `user_id` staat nullable in `liquibase.xml` | ⚠️     |
-| **Standaard logging-strategie** | `config.xml` defaultValue = **`NONE`** — zonder handmatige configuratie worden **geen** klassen gelogd                      | Integratietest: verifieer dat minimumset zorgklassen (Patient, Obs, User) standaard in scope valt | Ontbreekt                                                         | ❌     |
-| **Verwijderde items**           | `GP_STORE_LAST_STATE_OF_DELETED_ITEMS` defaultValue = **`false`** — eindtoestand bij verwijdering niet vastgelegd           | Test: bij DELETE-actie moet `serializedData` niet-null zijn (NEN 7510 vereist reconstructie)      | Ontbreekt in standaardconfiguratie                                | ❌     |
+**Legenda status:**
+| Symbool | Betekenis |
+|---------|-----------|
+| ✅ | Maatregel actief en aantoonbaar |
+| ⚠️ | Deels ingericht — aanvullende actie nodig |
+| ❌ | Ontbreekt — direct actie vereist |
 
 ---
 
-### 3.2 NEN 7510-2:2024 §8.16 — Bewakingsactiviteiten
+## 2. Categorie A — GitHub Security-tab
 
-> _Netwerken, systemen en applicaties moeten worden bewaakt op afwijkend gedrag en om potentiële beveiligingsincidenten te detecteren._
+### 2.1 Dependabot alerts — **Ingeschakeld** ✅
 
-| Aspect                 | Bevinding (code)                                                                                                       | Pipeline-maatregel                                                                  | Bewijs                                                                | Status |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------ |
-| **Runtime-monitoring** | Module logt databankwijzigingen maar bevat **geen alerting** bij ongewone patronen (bulk-deletes, nachtelijke toegang) | DAST / behavioral test in pipeline (of SIEM-integratie buiten module)               | Buiten scope module; aanbeveling: externe SIEM-koppeling documenteren | ⚠️     |
-| **Fout-logging**       | `HibernateAuditLogInterceptor` gebruikt `LogFactory.getLog()` — fouten worden gelogd op `DEBUG`-niveau                 | Pipelinestap: grep op log-niveau; zorg dat fouten op `ERROR` of `WARN` terechtkomen | `log.debug(...)` in `ViewAuditLogController.java` reg. 36             | ⚠️     |
+**Wat het doet:** GitHub scant automatisch `pom.xml` op bekende CVE's in afhankelijkheden
+en meldt dit als alert.
 
----
+| NEN 7510-2:2024 | Titel                                | Koppeling                                                                                                                                     | Status |
+| --------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **§8.8**        | Beheer van technische kwetsbaarheden | Dependabot detecteert kwetsbare libraries (bijv. verouderde Hibernate, Spring) in de Maven-dependency-tree automatisch vóór productie-release | ✅     |
+| **§8.29**       | Beveiligingstesten bij ontwikkeling  | Dependabot-alerts fungeren als een continue SAST-component gericht op third-party componenten                                                 | ✅     |
 
-### 3.3 NEN 7510-2:2024 §8.17 — Synchronisatie van klokken
+**Bewijs:** [Dependabot alerts](https://github.com/JohnBeunBV/IN2.4-OpenMRS-Auditlog-B18/security/dependabot)
+— alerts zichtbaar in Security-tab van de repository.
 
-> _Klokken van informatieverwerkende systemen die binnen een organisatie of een beveiligingsdomein worden gebruikt, moeten worden gesynchroniseerd met een goedgekeurde tijdbron._
-
-| Aspect                      | Bevinding (code)                                                                     | Pipeline-maatregel                                                                               | Bewijs                                                                      | Status |
-| --------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | ------ |
-| **Tijdstempel-integriteit** | `dateCreated` = `new Date()` (JVM-tijd) — correct als server NTP-gesynchroniseerd is | Pipeline: OS-level NTP-check in deployment-script (`timedatectl show`); verifieer tijdzone = UTC | Extern aan module; infrastructuurvereiste documenteren in deployment-README | ⚠️     |
-| **Tijdzone-vastlegging**    | `DATE_FORMAT = "yyyy-MM-dd HH:mm:ss"` — **geen tijdzone** opgeslagen                 | Statische analyse-regel: detecteer `SimpleDateFormat` zonder `UTC`-aanduiding                    | `AuditLogConstants.java` reg. 29 — ontbreekt timezone-suffix                | ❌     |
+**Resterende gap:** Dependabot doet _geen_ automatische pull-requests voor fixes (`dependabot.yml`
+ontbreekt). Aanbeveling: `dependabot.yml` toevoegen zodat updates ook als PR worden aangemaakt.
 
 ---
 
-### 3.4 NEN 7510-2:2024 §5.33 — Bescherming van registraties
+### 2.2 Code scanning alerts — **Ingeschakeld** ✅
 
-> _Registraties moeten worden beschermd tegen verlies, vernietiging, vervalsing, onbevoegde toegang en onbevoegde vrijgave._
+**Wat het doet:** GitHub CodeQL analyseert de Java-broncode op bekende kwetsbaarheidspatronen
+(CWE-klassen) bij elke push naar de hoofdbranch.
 
-| Aspect                                           | Bevinding (code)                                                                                                                                                         | Pipeline-maatregel                                                                                                               | Bewijs                                                   | Status |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------ |
-| **Onveranderlijkheid / integriteitsbeveiliging** | Geen cryptografische handtekening of hash over logregels aanwezig — database-admin kan regels stilzwijgend muteren                                                       | Pipeline: beveiligingstest controleert dat geen `UPDATE`-statement op `auditlog_audit_log` uitvoerbaar is vanuit applicatie-laag | Geen integriteitscheck aangetroffen in codebase          | ❌     |
-| **Bewaarplicht / retentiebeleid**                | `AuditLogDAO.delete(Object)` bestaat — logs kunnen worden verwijderd; **geen retentietermijn** geconfigureerd (NEN 7510 zorg: minimaal 5 jaar voor patiëntgebonden logs) | Pipeline-check: documenteer bewaartermijn in `README.md`; script blokkeert verwijdering voor logs < 5 jaar                       | Ontbreekt volledig                                       | ❌     |
-| **Back-upbescherming**                           | Module vertrouwt op Hibernate/DB-back-up; geen aparte exportfunctie met integriteitscheck                                                                                | Pipeline: DB-back-up inclusief auditlog-tabel in standaard back-upscript; hashverificatie na dump                                | Buiten moduleveantwoordelijkheid; infrastructuurvereiste | ⚠️     |
+| NEN 7510-2:2024 | Titel                                              | Koppeling                                                                                                                                                      | Status |
+| --------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **§8.28**       | Beveiligde codering                                | CodeQL detecteert onveilige codepatronen, waaronder de gevonden kwetsbaarheid: ontbrekende autorisatie op `exportAuditLogs()` in `ViewAuditLogController.java` | ✅     |
+| **§8.29**       | Beveiligingstesten bij ontwikkeling en aanvaarding | Code scanning levert aantoonbaar SAST-bewijs als onderdeel van het SSDLC-proces                                                                                | ✅     |
+| **§8.26**       | Beveiligingsvereisten voor applicaties             | Automatische bewaking dat beveiligingsvereisten (geen onbeschermde endpoints) niet worden geschonden bij nieuwe code                                           | ✅     |
 
----
-
-### 3.5 NEN 7510-2:2024 §8.3 & §9.4 — Beperking van informatietoegang
-
-> _Toegang tot informatie en functies van applicatiesystemen moet worden beperkt overeenkomstig het vastgestelde beleid inzake toegangsbeveiliging._
-
-| Aspect                                               | Bevinding (code)                                                                                                                                                                                                                        | Pipeline-maatregel                                                                                                                                       | Bewijs                                                                                                          | Status |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------ |
-| **Privilege-model service-laag**                     | `@Authorized`-annotaties aanwezig op alle methoden van `AuditLogService`: `PRIV_GET_AUDITLOGS`, `PRIV_MANAGE_AUDITLOG`, etc.                                                                                                            | Unit-test: aanroep zonder privilege gooit `APIAuthenticationException`                                                                                   | `AuditLogService.java` regels 40, 70, 81, 91, 101, 120, 136                                                     | ✅     |
-| **Export-endpoint weblaag — KRITIEKE KWETSBAARHEID** | `ViewAuditLogController.exportAuditLogs()` heeft **geen `@RequireUserPrivilege`** — ieder geauthenticeerd (of zelfs anoniem) HTTP-verzoek naar `/module/auditlog/exportAuditLog` downloadt de **complete auditlog** van alle gebruikers | **Verplichte pipeline-gate**: SAST (SonarQube / CodeQL) detecteert Spring MVC `@RequestMapping` zonder autorisatie-annotatie; build **faalt** bij vondst | `ViewAuditLogController.java` regels 47–57; risico: **IDOR + ongeautoriseerde bulk-export van patiëntgegevens** | ❌     |
-| **DWR-laag**                                         | `DWRAuditLogService` delegeert naar `Context.getService()`; DWR-authenticatie afhankelijk van OpenMRS-sessie                                                                                                                            | Pipeline: integratietest verifieert dat DWR-aanroep zonder sessie HTTP 403 retourneert                                                                   | `config.xml` DWR-allow-blok aanwezig zonder expliciete rolbeperking                                             | ⚠️     |
+**Bewijs:** [Code scanning alerts](https://github.com/JohnBeunBV/IN2.4-OpenMRS-Auditlog-B18/security/code-scanning)
+— scan-resultaten per commit traceerbaar.
 
 ---
 
-### 3.6 NEN 7510-2:2024 §8.11 — Maskering van gegevens
+### 2.3 Secret scanning alerts — **Ingeschakeld** ✅
 
-> _Gegevensmaskering moet worden gebruikt overeenkomstig het beleid inzake toegangsbeveiliging en overige beleidsregels en vereisten van de organisatie, rekening houdend met de toepasselijke wetgeving._
+**Wat het doet:** GitHub scant alle commits op hardcoded tokens, wachtwoorden, API-sleutels
+en certificaten. Bij detectie wordt onmiddellijk een alert gegenereerd.
 
-| Aspect                      | Bevinding (code)                                                                                                           | Pipeline-maatregel                                                                                                                                 | Bewijs                                                                   | Status |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------ |
-| **PII in serializedData**   | `serializedData` (BLOB) slaat JSON op met oude én nieuwe veldwaarden — dit kan BSN, geboortedatum, diagnose-codes bevatten | Pipeline: data-classificatietest controleert dat gevoelige veldnamen (`bsn`, `ssn`, `birthdate`, `password`) worden gemaskeerd vóór opslag in BLOB | `HibernateAuditLogInterceptor.java` — geen maskeringslogica aangetroffen | ❌     |
-| **Gebruikersnamen in logs** | `AuditLog.user` bevat volledige `User`-object-referentie; weergave in `viewAuditLog.jsp` toont gebruikersnaam direct       | Pipeline: UI-test verifieert dat weergave van gebruikersdata voldoet aan need-to-know                                                              | `viewAuditLog.jsp` — geen obfuscatie                                     | ⚠️     |
+| NEN 7510-2:2024 | Titel                              | Koppeling                                                                                                        | Status |
+| --------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------ |
+| **§8.12**       | Preventie van gegevenslekken (DLP) | Hardcoded credentials in broncode zijn een primaire oorzaak van datalekken; secret scanning blokkeert dit kanaal | ✅     |
+| **§8.24**       | Gebruik van cryptografie           | Sleutelbeheer vereist dat private keys nooit in versiebeheer terechtkomen; secret scanning bewaakt dit actief    | ✅     |
+| **§5.14**       | Informatie-overdracht              | Voorkomt dat gevoelige configuratie (DB-wachtwoorden, API-tokens) onbedoeld via repository wordt gedeeld         | ✅     |
 
----
-
-### 3.7 NEN 7510-2:2024 §8.25 t/m §8.29 — Beveiligde softwareontwikkeling (SSDLC)
-
-> _Beveiligingsprincipes voor het ontwerpen van systemen moeten worden vastgesteld, gedocumenteerd en toegepast op elke activiteit in de ontwikkeling van informatiesystemen._
-
-| Aspect                          | Bevinding (code)                                                                                         | Pipeline-maatregel                                                                                    | Bewijs                                                                       | Status |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------ |
-| **§8.25 SSDLC-proces**          | Maven-project met `src/test/` aanwezig; gestructureerde code-organisatie                                 | Pipeline: verplichte code-review via GitHub branch-protection op `main` (minimaal 1 reviewer)         | GitHub-repo `JohnBeunBV/IN2.4-OpenMRS-Auditlog-B18` — inrichten branch-rules | ⚠️     |
-| **§8.26 Beveiligingsvereisten** | Geen beveiligings-user-stories of threat-model aangetroffen in module-documentatie                       | Pipeline: vereist `SECURITY.md` of `docs/threat-model.md` aanwezig; lintcheck op aanwezigheid bestand | Ontbreekt in zip-inhoud                                                      | ❌     |
-| **§8.28 Beveiligde codering**   | IGNORED_PROPERTIES in interceptor negeert `changedBy`, `dateChanged` etc. — bewuste keuze gedocumenteerd | Pipeline: SonarQube quality gate ≥ 80 % codedekkingsdrempel; geen kritieke issues                     | `HibernateAuditLogInterceptor.java` reg. 91–93 — goed gedocumenteerd         | ✅     |
-| **§8.29 Beveiligingstesten**    | Uitgebreide JUnit-testset aanwezig (`AuditLogBehaviorTest`, `CollectionsAuditLogBehaviorTest`, etc.)     | Pipeline: `mvn test` als verplichte gate; test-rapport gepubliceerd in CI-artefacten                  | `api/src/test/java/` — 8+ testklassen aanwezig                               | ✅     |
-| **§8.29 SAST**                  | Geen SAST-configuratie aangetroffen in pom.xml                                                           | Pipeline: OWASP Dependency Check + CodeQL / SpotBugs als GitHub Actions-stap                          | Toe te voegen aan `.github/workflows/`                                       | ❌     |
+**Bewijs:** [Secret scanning alerts](https://github.com/JohnBeunBV/IN2.4-OpenMRS-Auditlog-B18/security/secret-scanning)
 
 ---
 
-## 4. Samenvatting compliance-scores
+### 2.4 Security advisories — **Ingeschakeld** ✅
 
-| NEN 7510-2:2024 Control | Titel                           | Status         |
-| ----------------------- | ------------------------------- | -------------- |
-| 8.15                    | Logboekregistratie              | ⚠️ Deels       |
-| 8.16                    | Bewakingsactiviteiten           | ⚠️ Deels       |
-| 8.17                    | Synchronisatie van klokken      | ⚠️ Deels       |
-| 5.33                    | Bescherming van registraties    | ❌ Ontbreekt   |
-| 8.3 / 9.4               | Beperking van informatietoegang | ❌ **Kritiek** |
-| 8.11                    | Maskering van gegevens          | ❌ Ontbreekt   |
-| 8.25–8.29               | Beveiligde softwareontwikkeling | ⚠️ Deels       |
+**Wat het doet:** Het team kan officiële CVE-advisories aanmaken voor kwetsbaarheden die
+worden gevonden in de module. Advisories zijn privé zichtbaar totdat ze worden gepubliceerd
+(responsible disclosure).
 
-**Legenda:**
+| NEN 7510-2:2024 | Titel                                                          | Koppeling                                                                                                                     | Status |
+| --------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **§5.7**        | Informatie over dreigingen                                     | Security advisories zijn het formele kanaal voor het vastleggen en delen van dreigingsinformatie specifiek voor deze module   | ✅     |
+| **§8.8**        | Beheer van technische kwetsbaarheden                           | Advisories documenteren kwetsbaarheden gestructureerd (CVSS-score, CWE, patch-versie) conform vulnerability-management-proces | ✅     |
+| **§5.24**       | Planning en voorbereiding van informatiebeveiligingsincidenten | Gepubliceerde advisory = formeel incident-record met tijdlijn en mitigatie                                                    | ✅     |
 
-- ✅ Voldoet — bewijs aantoonbaar aanwezig in code of pipeline
-- ⚠️ Deels — gedeeltelijk geïmplementeerd; gap gedocumenteerd
-- ❌ Ontbreekt — control niet geïmplementeerd; direct actie vereist
+**Bewijs:** [Security advisories](https://github.com/JohnBeunBV/IN2.4-OpenMRS-Auditlog-B18/security/advisories)
 
 ---
 
-## 5. Prioritaire aanbevelingen voor de pipeline
+### 2.5 Code quality findings — **Ingeschakeld** ✅
 
-De onderstaande maatregelen moeten worden toegevoegd aan `.github/workflows/ci.yml`:
+**Wat het doet:** GitHub detecteert automatisch codewaliteitsproblemen (dode code,
+complexiteitsdrempels, antipatronen) als onderdeel van de CI-pipeline.
 
-### 5.1 KRITIEK — Verhelp ontbrekende autorisatie exportAuditLog (§8.3)
+| NEN 7510-2:2024 | Titel                                | Koppeling                                                                                                             | Status |
+| --------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------ |
+| **§8.28**       | Beveiligde codering                  | Codekwaliteit correleert direct met veiligheid: complexe, onleesbare code is moeilijker te reviewen op kwetsbaarheden | ✅     |
+| **§8.25**       | Beveiligde ontwikkelingslevenscyclus | Code-quality-gates als verplichte drempel in de SSDLC maken beveiligde ontwikkeling structureel afdwingbaar           | ✅     |
 
-```java
-// ViewAuditLogController.java — voeg toe:
-@RequestMapping("module/auditlog/exportAuditLog")
-@RequireUserPrivilege(privileges = { AuditLogConstants.PRIV_MANAGE_AUDITLOG })
-public void exportAuditLogs(...) { ... }
+---
+
+### 2.6 Security policy — **Uitgeschakeld** ❌
+
+**Wat het zou doen:** Een `SECURITY.md`-bestand in de repository dat beschrijft hoe externe
+gebruikers een beveiligingslek kunnen melden (responsible disclosure-beleid).
+
+| NEN 7510-2:2024 | Titel                                               | Koppeling                                                                                                       | Status |
+| --------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------ |
+| **§5.2**        | Informatiebeveiligingsbeleid                        | Een security policy is het aantoonbare beleidsdocument dat NEN 7510 vereist voor het melden van kwetsbaarheden  | ❌     |
+| **§6.4**        | Rapportage van informatiebeveiligingsgebeurtenissen | Zonder policy weten externe melders niet naar wie, hoe en via welk kanaal zij kwetsbaarheden moeten rapporteren | ❌     |
+
+**Actie:** Maak `SECURITY.md` aan in de root van de repository met minimaal:
+
+- Ondersteunde versies
+- Meldkanaal (e-mailadres of GitHub-formulier)
+- Verwachte reactietijd
+- Responsible disclosure-termijn (bijv. 90 dagen)
+
+---
+
+### 2.7 Private vulnerability reporting — **Uitgeschakeld** ❌
+
+**Wat het zou doen:** Externe onderzoekers kunnen een kwetsbaarheid privé melden via GitHub
+zonder dat dit publiek zichtbaar wordt — directe koppeling met security advisories.
+
+| NEN 7510-2:2024 | Titel                                               | Koppeling                                                                                                                          | Status |
+| --------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **§6.4**        | Rapportage van informatiebeveiligingsgebeurtenissen | NEN 7510 vereist een formeel, laagdrempelig meldkanaal voor beveiligingsgebeurtenissen; private reporting is precies dat kanaal    | ❌     |
+| **§5.6**        | Contact met speciale belangengroepen                | Beveiligingsonderzoekers zijn een externe belangengroep waarmee contact onderhouden moet worden; private reporting faciliteert dit | ❌     |
+
+**Actie:** Activeer _Private vulnerability reporting_ in de Security-tab
+(Settings → Security → Private vulnerability reporting → Enable).
+Kost geen extra configuratie en sluit direct aan op de reeds ingeschakelde Security advisories.
+
+---
+
+## 3. Categorie B — Repository-governance
+
+### 3.1 Signing keys voor commits — **Ingeschakeld** ✅
+
+**Wat het doet:** Elke commit is cryptografisch ondertekend met de GPG- of SSH-sleutel van
+de ontwikkelaar. GitHub markeert ondertekende commits als **Verified**. Niet-ondertekende
+commits worden geblokkeerd door de branch-protection-regel.
+
+| NEN 7510-2:2024 | Titel                                | Koppeling                                                                                                                                                                          | Status |
+| --------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **§8.24**       | Gebruik van cryptografie             | Commit-signing past asymmetrische cryptografie toe (GPG/SSH) om de identiteit van de indiener onweerlegbaar vast te leggen                                                         | ✅     |
+| **§5.33**       | Bescherming van registraties         | Ondertekende commits maken de versiegeschiedenis **tamper-evident**: een gewijzigd commit-object verliest zijn Verified-status, waardoor retroactieve manipulatie detecteerbaar is | ✅     |
+| **§8.15**       | Logboekregistratie — non-repudiation | De koppeling commit-hash ↔ cryptografische handtekening ↔ ontwikkelaarsidentiteit levert onweerlegbaarheid (non-repudiation) voor codewijzigingen                                  | ✅     |
+
+**Bewijs:** In GitHub UI — commits in `main` tonen het **Verified**-label. Controleerbaar via:
+
 ```
-
-Pipeline-gate (GitHub Actions):
-
-```yaml
-- name: SAST – detecteer onbeveiligde endpoints
-  run: mvn com.github.spotbugs:spotbugs-maven-plugin:check -Dspotbugs.failThreshold=High
-```
-
-### 5.2 HOOG — Voeg OWASP Dependency Check toe (§8.29)
-
-```yaml
-- name: OWASP Dependency Check
-  run: |
-    mvn org.owasp:dependency-check-maven:check \
-      -DfailBuildOnCVSS=7 \
-      -DsuppressionFile=owasp-suppressions.xml
-- name: Upload rapport
-  uses: actions/upload-artifact@v4
-  with:
-    name: dependency-check-report
-    path: target/dependency-check-report.html
-```
-
-### 5.3 HOOG — Activeer minimale audit-strategie (§8.15)
-
-In `config.xml` aanpassen:
-
-```xml
-<globalProperty>
-  <property>auditlog.auditingStrategy</property>
-  <defaultValue>NONE_EXCEPT</defaultValue>  <!-- was: NONE -->
-</globalProperty>
-<globalProperty>
-  <property>auditlog.exceptions</property>
-  <defaultValue>org.openmrs.Patient,org.openmrs.User,org.openmrs.Obs</defaultValue>
-</globalProperty>
-<globalProperty>
-  <property>auditlog.storeLastStateOfDeletedItems</property>
-  <defaultValue>true</defaultValue>  <!-- was: false -->
-</globalProperty>
-```
-
-### 5.4 MIDDEL — Tijdzone vastleggen in tijdstempels (§8.17)
-
-```java
-// AuditLogConstants.java
-public static final String DATE_FORMAT = "yyyy-MM-dd HH:mm:ss'Z'"; // UTC suffix toevoegen
-```
-
-Pipeline-lintcheck:
-
-```yaml
-- name: Tijdzone-check in AuditLogConstants
-  run: grep -n "DATE_FORMAT" api/src/main/java/org/openmrs/module/auditlog/util/AuditLogConstants.java | grep -v "'Z'"
-  # Faalt als tijdzone-aanduiding ontbreekt
-```
-
-### 5.5 MIDDEL — Retentiebeleid documenteren en afdwingen (§5.33)
-
-Toe te voegen in `README.md`:
-
-```markdown
-## Wettelijk retentiebeleid
-
-Conform NEN 7510-2:2024 §5.33 en de Wet op de Geneeskundige Behandelingsovereenkomst
-(WGBO) moeten patiëntgebonden auditlogs minimaal **15 jaar** worden bewaard.
-Logs ouder dan 15 jaar mogen uitsluitend worden verwijderd na expliciete goedkeuring
-van de functionaris gegevensbescherming (FG).
+git log --show-signature
 ```
 
 ---
 
-## 6. Bewijs-matrix (traceerbaarheid)
+### 3.2 Tweefactorauthenticatie (2FA) — **Ingeschakeld** ✅
 
-| Bewijs-ID | Beschrijving                                              | Bestandslocatie                              | NEN-control |
-| --------- | --------------------------------------------------------- | -------------------------------------------- | ----------- |
-| EV-01     | AuditLog entiteit met verplichte velden                   | `api/.../AuditLog.java`                      | 8.15        |
-| EV-02     | Liquibase-schema met NOT NULL constraints                 | `api/.../liquibase.xml`                      | 8.15        |
-| EV-03     | `@Authorized` annotaties service-laag                     | `api/.../AuditLogService.java`               | 8.3 / 9.4   |
-| EV-04     | **KWETSBAARHEID**: ontbrekende autorisatie exportAuditLog | `omod/.../ViewAuditLogController.java:47-57` | 8.3 — ❌    |
-| EV-05     | Privilege-definities in module-config                     | `omod/.../config.xml`                        | 8.3         |
-| EV-06     | Standaardstrategie = NONE (logging uit)                   | `omod/.../config.xml:32`                     | 8.15 — ❌   |
-| EV-07     | Geen integriteits-hash op logregels                       | Codebase (afwezig)                           | 5.33 — ❌   |
-| EV-08     | Geen maskering van PII in serializedData                  | `api/.../HibernateAuditLogInterceptor.java`  | 8.11 — ❌   |
-| EV-09     | Tijdzone ontbreekt in DATE_FORMAT                         | `api/.../AuditLogConstants.java:29`          | 8.17 — ❌   |
-| EV-10     | Uitgebreide JUnit-testdekking                             | `api/src/test/java/` (8 klassen)             | 8.29 — ✅   |
+**Wat het doet:** Alle leden van de GitHub-organisatie/repository zijn verplicht om
+tweefactorauthenticatie te gebruiken voor toegang. Accounts zonder 2FA worden automatisch
+uitgesloten van de organisatie.
+
+| NEN 7510-2:2024 | Titel                    | Koppeling                                                                                                                                          | Status |
+| --------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **§5.17**       | Authenticatie-informatie | NEN 7510 vereist dat toegang tot systemen die (patiënt)gegevens verwerken of beheren wordt beveiligd met sterke authenticatie; 2FA voldoet hieraan | ✅     |
+| **§8.5**        | Beveiligde authenticatie | MFA als tweede factor beschermt ook bij gestolen wachtwoord (credential stuffing / phishing)                                                       | ✅     |
+| **§5.15**       | Toegangsbeveiliging      | 2FA is een fundamentele laag in het toegangsbeveiligingsbeleid; zonder 2FA heeft een gestolen GitHub-account direct schrijftoegang tot de broncode | ✅     |
+
+**Bewijs:** Organisatie-instellingen → Authentication security → _Require two-factor
+authentication for everyone in the organization_ → **Enabled**.
 
 ---
 
-_Einde document — groep B18 · IN2.4 Software Security Audit_
+### 3.3 Teams-rollen — **Ingeschakeld** ⚠️
+
+**Wat het doet:** Toegang tot de repository is ingedeeld via GitHub Teams met aparte rollen
+(Read / Triage / Write / Maintain / Admin). Niet elk teamlid heeft toegang tot elk project.
+
+**Kanttekening bij de implementatie:** De huidige inrichting werkt op basis van
+_request-and-approve_ — een gebruiker dient een verzoek in om lid te worden van een team,
+en de owner accepteert of weigert dat. Dit is **geen volledig afgedwongen RBAC**: toegang
+wordt reactief verleend op verzoek, niet proactief toegewezen op basis van een vastgestelde
+rol of functie. Hierdoor bestaat het risico dat een verzoek wordt geaccepteerd zonder formele
+toetsing aan het need-to-know-principe.
+
+| NEN 7510-2:2024 | Titel                           | Koppeling                                                                                                                                                                                                                               | Status |
+| --------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **§5.15**       | Toegangsbeveiliging             | Teams begrenzen toegang per project — wie niet in het B18-team zit heeft geen schrijftoegang. De begrenzing is technisch correct, maar de _toelatingsprocedure_ is informeel (ad-hoc acceptatie door owner)                             | ⚠️     |
+| **§5.18**       | Toegangsrechten                 | NEN 7510 vereist dat toegangsrechten worden toegekend op basis van een **formeel vastgesteld principe** (least privilege / need-to-know). Request-based toegang zonder gedocumenteerd toetsingscriterium voldoet hier niet volledig aan | ⚠️     |
+| **§8.3**        | Beperking van informatietoegang | Studenten/medewerkers buiten het team kunnen de repository niet muteren — de technische scheiding werkt                                                                                                                                 | ✅     |
+
+**Bewijs:** GitHub → Settings → Collaborators and teams — teamstructuur zichtbaar.
+
+**Actie om naar ✅ te komen:** Documenteer een korte toegangsprocedure (bijv. in `CONTRIBUTING.md`
+of de projectwiki): wie mag lid worden, wie beoordeelt het verzoek, op basis van welk criterium.
+Daarmee is het request-proces formeel verankerd en voldoet het aan §5.18.
+
+---
+
+## 4. Categorie C — Resterende gaps (niet gedekt door GitHub-instellingen)
+
+De onderstaande controls vallen buiten wat de GitHub-beveiligingsinstellingen kunnen afdekken
+en vereisen aanpassingen in de broncode of documentatie.
+
+| NEN 7510-2:2024 | Titel                           | Gap                                                                                                                | Vereiste actie                                                                                             | Status |
+| --------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------ |
+| **§8.15**       | Logboekregistratie              | Standaardstrategie = `NONE` in `config.xml:32` — logging staat standaard _uit_                                     | Wijzig default naar `NONE_EXCEPT` met minimumset zorgklassen (Patient, User, Obs)                          | ❌     |
+| **§8.15**       | Logboekregistratie              | `storeLastStateOfDeletedItems` = `false` — eindtoestand bij verwijdering niet vastgelegd                           | Wijzig default naar `true` in `config.xml`                                                                 | ❌     |
+| **§5.33**       | Bescherming van registraties    | Geen cryptografische integriteitsbeveiliging op logregels — DB-admin kan stilzwijgend mutaties uitvoeren           | Voeg HMAC-veld toe aan `auditlog_audit_log`-tabel of implementeer append-only DB-rechten                   | ❌     |
+| **§5.33**       | Bescherming van registraties    | Geen retentiebeleid — logs kunnen via `AuditLogDAO.delete()` worden verwijderd zonder tijdsbeperking               | Documenteer retentietermijn (WGBO: 15 jaar) in `README.md`; voeg verwijderblokkade toe voor logs < 15 jaar | ❌     |
+| **§8.11**       | Maskering van gegevens          | `serializedData`-blob kan ongemaskerd PII bevatten (BSN, diagnose, geboortedatum)                                  | Voeg maskeringsfilter toe in `HibernateAuditLogInterceptor` voor geclassificeerde veldnamen                | ❌     |
+| **§8.3**        | Beperking van informatietoegang | `exportAuditLogs()` endpoint in `ViewAuditLogController.java:47` mist `@RequireUserPrivilege` — IDOR-kwetsbaarheid | Voeg `@RequireUserPrivilege(privileges = {PRIV_MANAGE_AUDITLOG})` toe                                      | ❌     |
+| **§8.17**       | Synchronisatie van klokken      | `DATE_FORMAT` slaat tijdstempels op zonder tijdzone-aanduiding (`AuditLogConstants.java:29`)                       | Wijzig naar `yyyy-MM-dd'T'HH:mm:ss'Z'` (ISO 8601 UTC)                                                      | ⚠️     |
+
+---
+
+## 5. Totaaloverzicht compliance-scores
+
+| NEN 7510-2:2024 | Titel                                  | GitHub-maatregel                                    | Status                 |
+| --------------- | -------------------------------------- | --------------------------------------------------- | ---------------------- |
+| §5.2            | Informatiebeveiligingsbeleid           | Security policy                                     | ❌ Uitgeschakeld       |
+| §5.6            | Contact met speciale belangengroepen   | Private vulnerability reporting                     | ❌ Uitgeschakeld       |
+| §5.7            | Informatie over dreigingen             | Security advisories                                 | ✅                     |
+| §5.14           | Informatie-overdracht                  | Secret scanning                                     | ✅                     |
+| §5.15           | Toegangsbeveiliging                    | 2FA + Teams-rollen                                  | ⚠️ Deels               |
+| §5.17           | Authenticatie-informatie               | 2FA                                                 | ✅                     |
+| §5.18           | Toegangsrechten                        | Teams-rollen — request-based, niet formeel getoetst | ⚠️ Deels               |
+| §5.24           | Voorbereiding incidenten               | Security advisories                                 | ✅                     |
+| §5.33           | Bescherming van registraties           | Signing keys + _code-aanpassing vereist_            | ⚠️ Deels               |
+| §6.4            | Rapportage beveiligingsgebeurtenissen  | Security policy + Private reporting                 | ❌ Beide uitgeschakeld |
+| §8.3            | Beperking van informatietoegang        | Teams-rollen + _code-aanpassing vereist_            | ⚠️ Deels               |
+| §8.5            | Beveiligde authenticatie               | 2FA                                                 | ✅                     |
+| §8.8            | Beheer van technische kwetsbaarheden   | Dependabot + Security advisories                    | ✅                     |
+| §8.11           | Maskering van gegevens                 | — (_code-aanpassing vereist_)                       | ❌                     |
+| §8.12           | Preventie van gegevenslekken           | Secret scanning                                     | ✅                     |
+| §8.15           | Logboekregistratie                     | Signing keys + _config-aanpassing vereist_          | ⚠️ Deels               |
+| §8.17           | Synchronisatie van klokken             | — (_code-aanpassing vereist_)                       | ⚠️ Deels               |
+| §8.24           | Gebruik van cryptografie               | Signing keys + Secret scanning                      | ✅                     |
+| §8.25           | Beveiligde ontwikkelingslevenscyclus   | Code quality + Code scanning                        | ✅                     |
+| §8.26           | Beveiligingsvereisten voor applicaties | Code scanning                                       | ✅                     |
+| §8.28           | Beveiligde codering                    | Code scanning + Code quality                        | ✅                     |
+| §8.29           | Beveiligingstesten                     | Code scanning + Dependabot                          | ✅                     |
+
+---
+
+## 6. Directe actielijst (prioriteit)
+
+| Prioriteit | Actie                                                                         | NEN-control | Locatie                             |
+| ---------- | ----------------------------------------------------------------------------- | ----------- | ----------------------------------- |
+| 🔴 Kritiek | Activeer **Private vulnerability reporting** in GitHub Security-tab           | §6.4        | GitHub Settings                     |
+| 🔴 Kritiek | Maak `SECURITY.md` aan (responsible disclosure-beleid)                        | §5.2, §6.4  | Repository root                     |
+| 🔴 Kritiek | Voeg `@RequireUserPrivilege` toe aan `exportAuditLogs()`                      | §8.3        | `ViewAuditLogController.java:47`    |
+| 🟠 Hoog    | Wijzig default auditingstrategie van `NONE` naar `NONE_EXCEPT`                | §8.15       | `config.xml:32`                     |
+| 🟠 Hoog    | Activeer `storeLastStateOfDeletedItems` standaard                             | §8.15       | `config.xml`                        |
+| 🟡 Middel  | Documenteer retentietermijn 15 jaar (WGBO) in `README.md`                     | §5.33       | `README.md`                         |
+| 🟡 Middel  | Voeg PII-maskeringsfilter toe in Hibernate-interceptor                        | §8.11       | `HibernateAuditLogInterceptor.java` |
+| 🟡 Middel  | Voeg tijdzone toe aan `DATE_FORMAT` (ISO 8601 UTC)                            | §8.17       | `AuditLogConstants.java:29`         |
+| 🟡 Middel  | Documenteer toegangsprocedure voor Teams (wie mag lid worden, wie beoordeelt) | §5.18       | `CONTRIBUTING.md` of projectwiki    |
+
+---
+
+_Einde document — Groep B18 · IN2.4 Software Security Audit · NEN 7510-2:2024_
