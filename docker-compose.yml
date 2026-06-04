@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+ 
+  openmrs:
+    image: openmrs/openmrs-reference-application-distro:2.12.2
+    container_name: auditlog-openmrs
+    restart: unless-stopped
+    volumes:
+      - openmrs-data:/usr/local/tomcat/.OpenMRS
+      - ../build/auditlog.omod:/usr/local/tomcat/.OpenMRS/modules/auditlog.omod:ro
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_NAME}
+      DB_USERNAME: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_CREATE_TABLES: "true"
+      DB_AUTO_UPDATE: "true"
+      MODULE_WEB_ADMIN: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - auditlog-net
+ 
+  db:
+    image: mysql:8.0.43
+    container_name: auditlog-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - auditlog-net
+ 
+volumes:
+  openmrs-data:
+  db-data:
+ 
+networks:
+  auditlog-net:
+    driver: bridge

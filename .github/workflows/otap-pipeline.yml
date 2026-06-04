@@ -1,0 +1,159 @@
+name: OTAP Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout broncode
+        uses: actions/checkout@v4
+
+      - name: Stel Java 8 in (vereist door OpenMRS 1.8.x)
+        uses: actions/setup-java@v4
+        with:
+          java-version: "8"
+          distribution: temurin
+          cache: maven
+
+      - name: Maven build + testen
+        run: mvn --batch-mode clean package -Dmaven.test.failure.ignore=false
+
+      - name: Upload .omod als artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditlog-omod
+          path: omod/target/auditlog-*.omod
+          retention-days: 30
+
+  deploy-dev:
+    name: Deploy → DEV
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+      url: http://localhost:8080/openmrs
+
+    steps:
+      - name: Checkout broncode
+        uses: actions/checkout@v4
+
+      - name: Download .omod artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auditlog-omod
+          path: build/
+
+      - name: Hernoem omod naar vaste bestandsnaam
+        run: mv build/auditlog-*.omod build/auditlog.omod
+
+      - name: Start DEV-omgeving
+        working-directory: docker/dev
+        env:
+          DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+          DB_ROOT_PASSWORD: ${{ secrets.DEV_DB_ROOT_PASSWORD }}
+        run: |
+          echo "DB_NAME=openmrs_dev"          > .env
+          echo "DB_USER=openmrs"             >> .env
+          echo "DB_PASSWORD=$DB_PASSWORD"    >> .env
+          echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD" >> .env
+          docker compose up -d --wait
+
+      - name: Smoke-test DEV (HTTP 200 op /openmrs)
+        run: |
+          sleep 30
+          curl --fail --retry 5 --retry-delay 10 http://localhost:8080/openmrs/
+
+  deploy-test:
+    name: Deploy → TEST
+    needs: deploy-dev
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment:
+      name: test
+      url: http://localhost:8081/openmrs
+
+    steps:
+      - name: Checkout broncode
+        uses: actions/checkout@v4
+
+      - name: Download .omod artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auditlog-omod
+          path: build/
+
+      - name: Hernoem omod naar vaste bestandsnaam
+        run: mv build/auditlog-*.omod build/auditlog.omod
+
+      - name: Start TEST-omgeving
+        working-directory: docker/test
+        env:
+          DB_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+          DB_ROOT_PASSWORD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
+        run: |
+          echo "DB_NAME=openmrs_test"         > .env
+          echo "DB_USER=openmrs"             >> .env
+          echo "DB_PASSWORD=$DB_PASSWORD"    >> .env
+          echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD" >> .env
+          docker compose up -d --wait
+
+      - name: Integratietests uitvoeren
+        run: |
+          sleep 30
+          # Voeg hier je integratietest-commando toe, bijv. Maven Failsafe
+          # mvn verify -Pfailsafe -Dtest.base.url=http://localhost:8081
+          echo "Integratietests geslaagd (placeholder)"
+
+  deploy-prod:
+    name: Deploy → PRODUCTIE
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://openmrs.example.org/openmrs
+
+    steps:
+      - name: Checkout broncode
+        uses: actions/checkout@v4
+
+      - name: Download .omod artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auditlog-omod
+          path: build/
+
+      - name: Hernoem omod naar vaste bestandsnaam
+        run: mv build/auditlog-*.omod build/auditlog.omod
+
+      - name: Start PRODUCTIE-omgeving
+        working-directory: docker/prod
+        env:
+          DB_NAME: ${{ secrets.PROD_DB_NAME }}
+          DB_USER: ${{ secrets.PROD_DB_USER }}
+          DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          DB_ROOT_PASSWORD: ${{ secrets.PROD_DB_ROOT_PASSWORD }}
+        run: |
+          echo "DB_NAME=$DB_NAME"                         > .env
+          echo "DB_USER=$DB_USER"                        >> .env
+          echo "DB_PASSWORD=$DB_PASSWORD"                >> .env
+          echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"      >> .env
+          docker compose up -d --wait
+
+      - name: Productie smoke-test
+        run: |
+          sleep 60
+          curl --fail --retry 5 --retry-delay 15 https://openmrs.example.org/openmrs/
