@@ -1,8 +1,4 @@
-# ============================================================
-# .gitignore – OTAP configuratie
-# ============================================================
-
-# Omgevingsvariabelen met secrets – NOOIT committen
+# Omgevingsvariabelen met secrets
 config/dev/.env
 config/test/.env
 config/prod/.env

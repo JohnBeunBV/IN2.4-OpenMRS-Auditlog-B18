@@ -1,13 +1,3 @@
-# ============================================================
-# CI/CD Pipeline – openmrs-module-auditlog
-# Omgevingen: dev → test → productie (OTAP)
-# ============================================================
-# Triggers:
-#   - Push naar `develop`   → deploy naar DEV + TEST
-#   - Push naar `main`      → deploy naar PRODUCTIE
-#   - Pull Request op main  → alleen bouwen + testen
-# ============================================================
-
 name: OTAP Pipeline
 
 on:
@@ -20,10 +10,6 @@ on:
       - main
 
 jobs:
-
-  # ──────────────────────────────────────────────────────────
-  # 1. BUILD & UNIT TESTS
-  # ──────────────────────────────────────────────────────────
   build:
     name: Build & Unit Tests
     runs-on: ubuntu-latest
@@ -51,10 +37,6 @@ jobs:
           path: omod/target/auditlog-*.omod
           retention-days: 30
 
-  # ──────────────────────────────────────────────────────────
-  # 2. DEPLOY NAAR DEV
-  # Draait alleen op de `develop`-branch
-  # ──────────────────────────────────────────────────────────
   deploy-dev:
     name: Deploy → DEV
     needs: build
@@ -94,10 +76,6 @@ jobs:
           sleep 30
           curl --fail --retry 5 --retry-delay 10 http://localhost:8080/openmrs/
 
-  # ──────────────────────────────────────────────────────────
-  # 3. DEPLOY NAAR TEST
-  # Draait na succesvolle DEV-deploy (develop-branch)
-  # ──────────────────────────────────────────────────────────
   deploy-test:
     name: Deploy → TEST
     needs: deploy-dev
@@ -139,11 +117,6 @@ jobs:
           # mvn verify -Pfailsafe -Dtest.base.url=http://localhost:8081
           echo "Integratietests geslaagd (placeholder)"
 
-  # ──────────────────────────────────────────────────────────
-  # 4. DEPLOY NAAR PRODUCTIE
-  # Draait alleen op de `main`-branch, na handmatige goedkeuring
-  # (GitHub Environment protection rule: required reviewers)
-  # ──────────────────────────────────────────────────────────
   deploy-prod:
     name: Deploy → PRODUCTIE
     needs: build

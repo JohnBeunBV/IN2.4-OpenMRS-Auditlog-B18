@@ -64,28 +64,6 @@ open http://localhost:8080/openmrs
 
 ---
 
-## CI/CD-stroom
-
-```
-Push naar develop
-    │
-    ▼
-Build & Unit Tests (Maven)
-    │
-    ├── Geslaagd ──► Deploy DEV ──► Smoke-test ──► Deploy TEST ──► Integratietests
-    │
-    └── Mislukt  ──► Pipeline stopt, notificatie naar team
-
-Push naar main (via PR + review)
-    │
-    ▼
-Build & Unit Tests
-    │
-    └── Geslaagd ──► [Handmatige goedkeuring] ──► Deploy PRODUCTIE
-```
-
----
-
 ## NEN-7510 verband
 
 | Control | Maatregel in deze OTAP |
