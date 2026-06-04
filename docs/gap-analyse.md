@@ -1,7 +1,7 @@
 # Gap-analyse: openmrs-module-auditlog vs. NEN 7510-2:2024
 
 **Module:** openmrs-module-auditlog v1.1-SNAPSHOT  
-**Norm:** NEN 7510-2:2024 (Informatiebeveiliging in de zorg — Deel 2: Beheersmaatregelen)  
+**Norm:** NEN 7510-2:2024+A1:2026 (Informatiebeveiliging in de zorg — Deel 2: Beheersmaatregelen)  
 **Beoordeeld:** A.8.3 Toegangsbeveiliging, A.8.5 Authenticatie, A.8.15 Logging  
 **Datum:** 2026-06-03  
 **Beoordelaar:** Groep B18
@@ -18,19 +18,19 @@
 
 ---
 
-## A.8.3 — Toegangsbeveiliging (Information Access Restriction)
+## A.8.3 — Beperking toegang tot informatie (Information Access Restriction)
 
-> **NEN 7510-2:2024 vereiste:** Toegang tot informatie en andere gerelateerde bedrijfsmiddelen dient te worden beperkt overeenkomstig het vastgestelde beleid inzake toegangsbeheersing.
+> **NEN 7510-2:2024+A1:2026 vereiste:** De toegang tot informatie en andere gerelateerde bedrijfsmiddelen behoort te worden beperkt overeenkomstig het vastgestelde onderwerpspecifieke beleid inzake toegangsbeveiliging.
 
 ### Bevindingen
 
 | #   | Bevinding                                                             | Status      | Bestand : regel                       |
 | --- | --------------------------------------------------------------------- | ----------- | ------------------------------------- |
-| 1   | Vijf privileges gedefinieerd in `config.xml`                          | ✅ Aanwezig | `config.xml` : 79–95                  |
-| 2   | DWR-service controleert privilege voor details                        | ✅ Aanwezig | `DWRAuditLogService.java` : 55        |
-| 3   | `PRIV_VIEW_AUDITLOG` gebruikt maar niet geregistreerd in `config.xml` | ❌ Afwezig  | `AuditLogWebConstants.java` : 8       |
-| 4   | `showForm()` heeft geen enkele toegangscontrole                       | ❌ Afwezig  | `ViewAuditLogController.java` : 37–46 |
-| 5   | `exportAuditLogs()` heeft geen toegangscontrole (IDOR)                | ❌ Afwezig  | `ViewAuditLogController.java` : 56–63 |
+| 1   | Vijf privileges gedefinieerd in `config.xml`                          | ✅ Aanwezig | `config.xml` : 88–101                 |
+| 2   | DWR-service controleert privilege voor details                        | ✅ Aanwezig | `DWRAuditLogService.java` : 64-128    |
+| 3   | `PRIV_VIEW_AUDITLOG` gebruikt maar niet geregistreerd in `config.xml` | ❌ Afwezig  | `AuditLogWebConstants.java` : 21      |
+| 4   | `showForm()` heeft geen enkele toegangscontrole                       | ❌ Afwezig  | `ViewAuditLogController.java` : 41–49 |
+| 5   | `exportAuditLogs()` heeft geen toegangscontrole (IDOR)                | ❌ Afwezig  | `ViewAuditLogController.java` : 51–64 |
 
 ### Bewijs
 
@@ -116,15 +116,15 @@ Er vindt geen authenticatie- of autorisatiecontrole plaats. Elke anonieme aanroe
 
 ## A.8.5 — Beveiligde authenticatie (Secure Authentication)
 
-> **NEN 7510-2:2024 vereiste:** Authenticatieprocedures en -technologieën dienen te worden geïmplementeerd op basis van beperkingen van toegang tot informatie.
+> **NEN 7510-2:2024+A1:2026 vereiste:** Er behoren beveiligde authenticatietechnologieën en -procedures te worden geïmplementeerd op basis van beperkingen van de toegang tot informatie en het onderwerpspecifieke beleid inzake toegangsbeveiliging.
 
 ### Bevindingen
 
-| #   | Bevinding                                                                | Status          | Bestand : regel                           |
-| --- | ------------------------------------------------------------------------ | --------------- | ----------------------------------------- |
-| 6   | Interceptor registreert de geauthenticeerde gebruiker bij elke log-entry | ✅ Aanwezig     | `HibernateAuditLogInterceptor.java` : 535 |
-| 7   | Unauthenticated transacties worden niet geblokkeerd maar stil verwerkt   | ⚠️ Gedeeltelijk | `HibernateAuditLogInterceptor.java` : 382 |
-| 8   | Export-endpoint vereist geen authenticatie                               | ❌ Afwezig      | `ViewAuditLogController.java` : 56        |
+| #   | Bevinding                                                                | Status          | Bestand : regel                               |
+| --- | ------------------------------------------------------------------------ | --------------- | --------------------------------------------- |
+| 6   | Interceptor registreert de geauthenticeerde gebruiker bij elke log-entry | ✅ Aanwezig     | `HibernateAuditLogInterceptor.java` : 535     |
+| 7   | Unauthenticated transacties worden niet geblokkeerd maar stil verwerkt   | ⚠️ Gedeeltelijk | `HibernateAuditLogInterceptor.java` : 381-471 |
+| 8   | Export-endpoint vereist geen authenticatie                               | ❌ Afwezig      | `ViewAuditLogController.java` : 56-64         |
 
 ### Bewijs
 
@@ -181,18 +181,18 @@ public void exportAuditLogs(String userId, HttpServletResponse response) throws 
 
 ---
 
-## A.8.15 — Logging van gebeurtenissen (Event Logging)
+## A.8.15 — Logging (Event Logging)
 
-> **NEN 7510-2:2024 vereiste:** Logbestanden die activiteiten van gebruikers, uitzonderingen, storingen en informatiebeveiligingsgebeurtenissen vastleggen, dienen te worden geproduceerd, opgeslagen, beveiligd en geanalyseerd.
+> **NEN 7510-2:2024+A1:2026 vereiste:** Er behoren logbestanden waarin activiteiten, uitzonderingen, fouten en andere relevante gebeurtenissen worden geregistreerd, te worden geproduceerd, opgeslagen, beschermd en geanalyseerd.
 
 ### Bevindingen
 
 | #   | Bevinding                                                           | Status          | Bestand : regel                               |
 | --- | ------------------------------------------------------------------- | --------------- | --------------------------------------------- |
-| 9   | CREATED, UPDATED en DELETED worden gelogd via Hibernate-interceptor | ✅ Aanwezig     | `HibernateAuditLogInterceptor.java` : 125–157 |
-| 10  | Logvelden: type, identifier, actie, gebruiker, tijdstip, versie     | ✅ Aanwezig     | `AuditLog.java` : 35–55                       |
-| 11  | READ-acties worden niet gelogd                                      | ❌ Afwezig      | `AuditLog.java` (enum Action)                 |
-| 12  | Standaardstrategie is `NONE` — er wordt standaard niets gelogd      | ❌ Afwezig      | `config.xml` : 49                             |
+| 9   | CREATED, UPDATED en DELETED worden gelogd via Hibernate-interceptor | ✅ Aanwezig     | `HibernateAuditLogInterceptor.java` : 134–248 |
+| 10  | Logvelden: type, identifier, actie, gebruiker, tijdstip, versie     | ✅ Aanwezig     | `AuditLog.java` : 38–62                       |
+| 11  | READ-acties worden niet gelogd                                      | ❌ Afwezig      | `AuditLog.java` 64-66                         |
+| 12  | Standaardstrategie is `NONE` — er wordt standaard niets gelogd      | ❌ Afwezig      | `config.xml` : 47-54                          |
 | 13  | Geen IP-adres of sessie-ID vastgelegd                               | ❌ Afwezig      | `AuditLog.java` (ontbrekend veld)             |
 | 14  | Auditlogs zijn muteerbaar — geen integriteitsbeveiliging            | ⚠️ Gedeeltelijk | `AuditLog.java` : setters                     |
 | 15  | Directe databasetoegang omzeilt logging volledig                    | ⚠️ Gedeeltelijk | `HibernateAuditLogInterceptor.java` (javadoc) |
