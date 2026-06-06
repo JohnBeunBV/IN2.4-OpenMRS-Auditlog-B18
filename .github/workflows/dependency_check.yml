@@ -1,0 +1,64 @@
+name: "CVE-scan – Trivy"
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 5 * * 1" # elke maandag 06:00 uur (UTC) — wekelijkse scan op kwetsbare dependencies
+
+jobs:
+  trivy:
+    name: Trivy CVE-scan
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write # SARIF uploaden naar Security tab
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------ #
+      # Trivy scant pom.xml rechtstreeks op kwetsbare dependencies          #
+      # Geen API key nodig — gebruikt eigen database                        #
+      # CRITICAL,HIGH → zelfde drempel als eerder (CVSS ≥ 7) mogelijk       #
+      # drempel verlagen                                                     #
+      # ------------------------------------------------------------------ #
+      - name: Run Trivy CVE-scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: openmrs-module-auditlog
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Upload SARIF naar GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      # ------------------------------------------------------------------ #
+      # Leesbaar tekstrapport als artifact (download via Actions-tab)       #
+      # ------------------------------------------------------------------ #
+      - name: Run Trivy voor leesbaar rapport
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          scan-type: fs
+          scan-ref: openmrs-module-auditlog
+          format: table
+          output: trivy-report.txt
+          severity: CRITICAL,HIGH
+
+      - name: Upload rapport als artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-rapport
+          path: trivy-report.txt
+          retention-days: 30
