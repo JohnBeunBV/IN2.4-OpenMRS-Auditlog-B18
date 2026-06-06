@@ -23,7 +23,8 @@ jobs:
       # ------------------------------------------------------------------ #
       # Trivy scant pom.xml rechtstreeks op kwetsbare dependencies          #
       # Geen API key nodig — gebruikt eigen database                        #
-      # CRITICAL,HIGH → zelfde drempel als eerder (CVSS ≥ 7)               #
+      # CRITICAL,HIGH → zelfde drempel als eerder (CVSS ≥ 7) mogelijk       #
+      # drempel verlagen                                                     #
       # ------------------------------------------------------------------ #
       - name: Run Trivy CVE-scan
         uses: aquasecurity/trivy-action@master
