@@ -1,0 +1,72 @@
+name: "SAST – SonarCloud"
+
+# Draait bij elke push naar main/dev én bij pull requests
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    name: SonarCloud SAST analyse
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: read # PR-decoratie (opmerkingen in de diff)
+
+    steps:
+      # ------------------------------------------------------------------ #
+      # 1. Checkout met volledige history                                   #
+      #    fetch-depth: 0 is VERPLICHT — SonarCloud gebruikt git blame       #
+      #    voor het toewijzen van bevindingen aan auteurs.                  #
+      # ------------------------------------------------------------------ #
+      - name: Checkout (volledige git-history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------ #
+      # 2. Java 11 — compatibel met OpenMRS 1.8.3 én SonarCloud            #
+      #    (Java 17 ondersteunt geen source=1.6 meer)                       #
+      # ------------------------------------------------------------------ #
+      - name: Set up Java 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: "11"
+          distribution: "temurin"
+          cache: maven # cacht ~/.m2 automatisch
+
+      # ------------------------------------------------------------------ #
+      # 3. Cache voor de SonarCloud scanner zelf (plugin-JARs etc.)        #
+      # ------------------------------------------------------------------ #
+      - name: Cache SonarCloud scanner
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # ------------------------------------------------------------------ #
+      # 4. Compileer het project en draai de SonarCloud analyse             #
+      #                                                                      #
+      #    -DskipTests           → tests uitschakelen (vermijdt afhank.-    #
+      #                           problemen met oude OpenMRS test-JARs)     #
+      #    -Dmaven.compiler.*=1.8 → overschrijft de source=1.6 in pom.xml; #
+      #                           Java 8-bytecode werkt ook prima voor Sonar #
+      #    sonar.qualitygate.wait → workflow faalt als quality gate rood is  #
+      # ------------------------------------------------------------------ #
+      - name: Build & SonarCloud analyse
+        working-directory: openmrs-module-auditlog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatisch aanwezig
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} # zie STAPPENPLAN stap 3
+        run: |
+          mvn -B package -DskipTests \
+            -Dmaven.compiler.source=1.8 \
+            -Dmaven.compiler.target=1.8 \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=JohnBeunBV_IN2.4-OpenMRS-Auditlog-B18 \
+            -Dsonar.organization=johnbeunbv \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.qualitygate.wait=true

@@ -1,0 +1,90 @@
+name: "CVE-scan – OWASP Dependency Check"
+
+# Draait bij push/PR én elke maandagochtend (nieuwe CVEs worden dagelijks
+# aan de NVD-database toegevoegd, dus een wekelijkse scan is verstandig)
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 6 * * 1" # elke maandag 06:00 UTC
+
+jobs:
+  dependency-check:
+    name: OWASP CVE-scan
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write # SARIF uploaden naar Security > Code scanning
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: "11"
+          distribution: "temurin"
+          cache: maven
+
+      # ------------------------------------------------------------------ #
+      # Cache de gedownloade NVD CVE-database (~200 MB).                   #
+      # Zonder cache duurt elke run 5-10 minuten extra.                    #
+      # We gebruiken run_id in de key zodat de cache wekelijks ververst.   #
+      # ------------------------------------------------------------------ #
+      - name: Cache OWASP NVD-database
+        uses: actions/cache@v4
+        with:
+          path: ~/.owasp/
+          key: ${{ runner.os }}-owasp-${{ github.run_id }}
+          restore-keys: ${{ runner.os }}-owasp-
+
+      # ------------------------------------------------------------------ #
+      # OWASP Dependency Check – aggregate-goal analyseert alle submodules  #
+      # (api/ + omod/) in één keer.                                          #
+      #                                                                      #
+      # -DfailBuildOnCVSS=7  → pipeline faalt bij HIGH/CRITICAL CVEs (≥7)  #
+      # -Dformats=HTML,SARIF → HTML voor mensen, SARIF voor GitHub          #
+      # NVD_API_KEY           → optioneel; GRATIS aan te maken op           #
+      #                         nvd.nist.gov/developers/request-an-api-key  #
+      #                         Zonder key: werkt maar is erg traag          #
+      # ------------------------------------------------------------------ #
+      - name: Run OWASP Dependency Check
+        working-directory: openmrs-module-auditlog
+        run: |
+          NVD_KEY="${{ secrets.NVD_API_KEY }}"
+          NVD_ARG=""
+          if [ -n "$NVD_KEY" ]; then
+            NVD_ARG="-DnvdApiKey=$NVD_KEY"
+          fi
+
+          mvn -B org.owasp:dependency-check-maven:aggregate \
+            -DfailBuildOnCVSS=7 \
+            -Dformats=HTML,SARIF \
+            -DdataDirectory=$HOME/.owasp \
+            $NVD_ARG
+
+      # ------------------------------------------------------------------ #
+      # Bewaar het leesbare HTML-rapport zodat je het kunt downloaden       #
+      # via Actions > je workflow-run > Artifacts.                          #
+      # ------------------------------------------------------------------ #
+      - name: Upload HTML-rapport als artifact
+        uses: actions/upload-artifact@v4
+        if: always() # ook uploaden als de build gefaald is (CVEs gevonden)
+        with:
+          name: dependency-check-rapport
+          path: openmrs-module-auditlog/target/dependency-check-report.html
+          retention-days: 30
+
+      # ------------------------------------------------------------------ #
+      # Upload het SARIF-bestand naar GitHub Security > Code scanning.      #
+      # CVEs verschijnen dan als alerts in de Security-tab van de repo,     #
+      # inclusief CWE-koppeling en ernst (CVSS score).                      #
+      # ------------------------------------------------------------------ #
+      - name: Upload SARIF naar GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: openmrs-module-auditlog/target/dependency-check-report.sarif
