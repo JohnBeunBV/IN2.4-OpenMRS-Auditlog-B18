@@ -48,7 +48,15 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
 
       # ------------------------------------------------------------------ #
-      # 4. Compileer het project en draai de SonarCloud analyse             #
+      # 4. Verwijder BOM-tekens uit Java-bestanden                          #
+      #    AuditLogActivator.java heeft een \ufeff BOM (Windows-artifact)   #
+      #    die Java's compiler niet accepteert op Linux.                    #
+      # ------------------------------------------------------------------ #
+      - name: Strip BOM uit Java-bestanden
+        run: find openmrs-module-auditlog -name "*.java" -exec sed -i '1s/^\xEF\xBB\xBF//' {} \;
+
+      # ------------------------------------------------------------------ #
+      # 5. Compileer het project en draai de SonarCloud analyse             #
       #                                                                      #
       #    -DskipTests           → tests uitschakelen (vermijdt afhank.-    #
       #                           problemen met oude OpenMRS test-JARs)     #
