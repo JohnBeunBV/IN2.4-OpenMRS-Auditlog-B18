@@ -1,14 +1,12 @@
 name: "CVE-scan – OWASP Dependency Check"
 
-# Draait bij push/PR én elke maandagochtend (nieuwe CVEs worden dagelijks
-# aan de NVD-database toegevoegd, dus een wekelijkse scan is verstandig)
 on:
   push:
     branches: [main, dev]
   pull_request:
     types: [opened, synchronize, reopened]
   schedule:
-    - cron: "0 6 * * 1" # elke maandag 06:00 UTC
+    - cron: "0 5 * * 1" # elke maandag ~06:00 NL tijd
 
 jobs:
   dependency-check:
@@ -16,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      security-events: write # SARIF uploaden naar Security > Code scanning
+      security-events: write # SARIF uploaden naar Security tab
 
     steps:
       - name: Checkout
@@ -30,26 +28,15 @@ jobs:
           cache: maven
 
       # ------------------------------------------------------------------ #
-      # Cache de gedownloade NVD CVE-database (~200 MB).                   #
-      # Zonder cache duurt elke run 5-10 minuten extra.                    #
-      # We gebruiken run_id in de key zodat de cache wekelijks ververst.   #
-      # ------------------------------------------------------------------ #
-      - name: Cache OWASP NVD-database
-        uses: actions/cache@v4
-        with:
-          path: ~/.owasp/
-          key: ${{ runner.os }}-owasp-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-owasp-
-
-      # ------------------------------------------------------------------ #
-      # OWASP Dependency Check – aggregate-goal analyseert alle submodules  #
-      # (api/ + omod/) in één keer.                                          #
-      #                                                                      #
-      # -DfailBuildOnCVSS=7  → pipeline faalt bij HIGH/CRITICAL CVEs (≥7)  #
-      # -Dformats=HTML,SARIF → HTML voor mensen, SARIF voor GitHub          #
-      # NVD_API_KEY           → optioneel; GRATIS aan te maken op           #
-      #                         nvd.nist.gov/developers/request-an-api-key  #
-      #                         Zonder key: werkt maar is erg traag          #
+      # OWASP Dependency Check                                              #
+      #                                                                     #
+      # Geen cache voor de H2-database — de gecachede DB raakte corrupt    #
+      # door een race condition in H2's achtergrondschrijver. Elke run     #
+      # krijgt nu een verse database in /tmp.                              #
+      #                                                                     #
+      # -DfailBuildOnCVSS=7  → faalt bij HIGH/CRITICAL (score ≥ 7)        #
+      # -Dformats=HTML,SARIF → leesbaar rapport + GitHub Security upload   #
+      # NVD_API_KEY           → optioneel, sneller maar niet verplicht     #
       # ------------------------------------------------------------------ #
       - name: Run OWASP Dependency Check
         working-directory: openmrs-module-auditlog
@@ -63,28 +50,25 @@ jobs:
           mvn -B org.owasp:dependency-check-maven:aggregate \
             -DfailBuildOnCVSS=7 \
             -Dformats=HTML,SARIF \
-            -DdataDirectory=$HOME/.owasp \
+            -DdataDirectory=/tmp/owasp-dc-data \
             $NVD_ARG
 
-      # ------------------------------------------------------------------ #
-      # Bewaar het leesbare HTML-rapport zodat je het kunt downloaden       #
-      # via Actions > je workflow-run > Artifacts.                          #
-      # ------------------------------------------------------------------ #
       - name: Upload HTML-rapport als artifact
         uses: actions/upload-artifact@v4
-        if: always() # ook uploaden als de build gefaald is (CVEs gevonden)
+        if: always()
         with:
           name: dependency-check-rapport
           path: openmrs-module-auditlog/target/dependency-check-report.html
           retention-days: 30
 
       # ------------------------------------------------------------------ #
-      # Upload het SARIF-bestand naar GitHub Security > Code scanning.      #
-      # CVEs verschijnen dan als alerts in de Security-tab van de repo,     #
-      # inclusief CWE-koppeling en ernst (CVSS score).                      #
+      # v3 → v4 (v3 wordt december 2026 deprecated)                        #
+      # continue-on-error zodat de workflow niet rood wordt als het SARIF  #
+      # bestand ontbreekt (bijv. bij een vroegtijdige fout)                #
       # ------------------------------------------------------------------ #
       - name: Upload SARIF naar GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
+        continue-on-error: true
         with:
           sarif_file: openmrs-module-auditlog/target/dependency-check-report.sarif
