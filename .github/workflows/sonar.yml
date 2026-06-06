@@ -71,8 +71,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} # zie STAPPENPLAN stap 3
         run: |
           mvn -B package -DskipTests \
-            -Dmaven.compiler.source=1.8 \
-            -Dmaven.compiler.target=1.8 \
+            -Dmaven.compiler.release=8 \
             org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=JohnBeunBV_IN2.4-OpenMRS-Auditlog-B18 \
             -Dsonar.organization=johnbeunbv \
