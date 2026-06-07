@@ -12,8 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Set up JDK 8
+          fetch-depth: 0
+      - name: Set up JDK 17 for Sonar
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with:
+          java-version: 17
+          distribution: 'zulu'
+      - name: Set up JDK 8 for build
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           java-version: 8
@@ -34,7 +39,10 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
         run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.projectKey=JohnBeunBV_IN2.4-OpenMRS-Auditlog-B18
           -Dsonar.organization=johnbeunbv
           -Dmaven.test.failure.ignore=true
+          -Dmaven.compiler.fork=true
+          -Dmaven.compiler.executable=${{ env.JAVA_HOME_8_X64 }}/bin/javac
