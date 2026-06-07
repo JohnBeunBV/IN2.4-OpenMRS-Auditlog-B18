@@ -37,6 +37,7 @@
 		<openMRSVersion>1.8.3</openMRSVersion>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jsonAssertVersion>1.5.0</jsonAssertVersion>
+		<sonar.organization>johnbeunbv</sonar.organization>
 	</properties>
 
 	<dependencyManagement>
