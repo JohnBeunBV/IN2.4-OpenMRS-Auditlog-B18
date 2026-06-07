@@ -29,7 +29,7 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
       - name: Strip BOM uit Java-bestanden
-        run: find openmrs-module-auditlog -name "*.java" -exec sed -i '1s/^\xEF\xBB\xBF//' {} \;
+        run: find . -name "*.java" -exec sed -i '1s/^\xEF\xBB\xBF//' {} \;
       - name: Build & SonarCloud analyse
         working-directory: openmrs-module-auditlog
         env:

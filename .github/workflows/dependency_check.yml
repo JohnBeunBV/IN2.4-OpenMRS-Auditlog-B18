@@ -1,4 +1,4 @@
-name: "CVE-scan – Trivy"
+name: SCA Trivy CVE-scan
 
 on:
   push:
