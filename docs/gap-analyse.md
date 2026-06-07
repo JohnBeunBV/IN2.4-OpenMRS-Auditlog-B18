@@ -24,13 +24,13 @@
 
 ### Bevindingen
 
-| #   | Bevinding                                                             | Status      | Bestand : regel                       |
-| --- | --------------------------------------------------------------------- | ----------- | ------------------------------------- |
-| 1   | Vijf privileges gedefinieerd in `config.xml`                          | ✅ Aanwezig | `config.xml` : 88–101                 |
-| 2   | DWR-service controleert privilege voor details                        | ✅ Aanwezig | `DWRAuditLogService.java` : 64-128    |
-| 3   | `PRIV_VIEW_AUDITLOG` gebruikt maar niet geregistreerd in `config.xml` | ❌ Afwezig  | `AuditLogWebConstants.java` : 21      |
-| 4   | `showForm()` heeft geen enkele toegangscontrole                       | ❌ Afwezig  | `ViewAuditLogController.java` : 41–49 |
-| 5   | `exportAuditLogs()` heeft geen toegangscontrole (IDOR)                | ❌ Afwezig  | `ViewAuditLogController.java` : 51–64 |
+| #   | Bevinding                                                                | Status      | Bestand : regel                       |
+| --- | ------------------------------------------------------------------------ | ----------- | ------------------------------------- |
+| 1   | Vijf privileges gedefinieerd in `config.xml`                             | ✅ Aanwezig | `config.xml` : 88–101                 |
+| 2   | DWR-service controleert privilege voor details                           | ✅ Aanwezig | `DWRAuditLogService.java` : 64-128    |
+| 3   | `PRIV_VIEW_AUDITLOG` gebruikt maar niet geregistreerd in `config.xml`    | ❌ Afwezig  | `AuditLogWebConstants.java` : 21      |
+| 4   | `showForm()` heeft geen enkele toegangscontrole                          | ❌ Afwezig  | `ViewAuditLogController.java` : 41–49 |
+| 5   | `exportAuditLogs()` heeft geen toegangscontrole (missing access control) | ❌ Afwezig  | `ViewAuditLogController.java` : 51–64 |
 
 ### Bewijs
 
@@ -79,13 +79,14 @@ public void showForm(ModelMap model) {
 
 Elke HTTP-aanroep naar `module/auditlog/viewAuditLog.htm` levert alle auditlogs op, ongeacht of de gebruiker ingelogd is of de benodigde privilege heeft.
 
-**Bevinding 5 — Export-endpoint zonder toegangscontrole + IDOR (❌)**
+**Bevinding 5 — Export-endpoint zonder toegangscontrole (❌)**
 
 ```java
 // ViewAuditLogController.java 51-64
 /**
  * VULNERABILITY: Missing authentication - @RequestMapping has no @RequireUserPrivilege
- * VULNERABILITY: IDOR - any user can export all audit logs including data about other users
+ * VULNERABILITY: Missing access control - any user can export all audit logs
+ *                regardless of userId parameter value
  */
 @RequestMapping("module/auditlog/exportAuditLog")
 public void exportAuditLogs(String userId, HttpServletResponse response) throws IOException {
@@ -97,7 +98,7 @@ public void exportAuditLogs(String userId, HttpServletResponse response) throws 
 }
 ```
 
-Er vindt geen authenticatie- of autorisatiecontrole plaats. Elke anonieme aanroep kan de volledige audittrail exporteren als CSV. Dit is tevens een **IDOR** (Insecure Direct Object Reference) omdat de `userId`-parameter niet wordt gevalideerd of gebruikt als filter.
+Er vindt geen authenticatie- of autorisatiecontrole plaats. Elke anonieme aanroep kan de volledige audittrail exporteren als CSV. De `userId`-parameter wordt geaccepteerd maar volledig genegeerd — de query retourneert altijd alle logs ongeacht de meegegeven waarde.
 
 ### Huidig vs. gewenst
 
@@ -327,10 +328,10 @@ Dit is een inherente architectuurbeperking die in de javadoc is erkend maar niet
 | Prioriteit | Actie                                                                      | Norm-referentie |
 | ---------- | -------------------------------------------------------------------------- | --------------- |
 | 🔴 Kritiek | Verwijder of beveilig `exportAuditLogs()` met `Context.requirePrivilege()` | A.8.3, A.8.5    |
-| 🔴 Kritiek | Registreer `View Audit Log` als `<privilege>` in `config.xml`              | A.8.3           |
-| 🔴 Kritiek | Voeg `Context.requirePrivilege()` toe aan `showForm()`                     | A.8.3           |
+| 🟠 Hoog    | Voeg `Context.requirePrivilege()` toe aan `showForm()`                     | A.8.3           |
 | 🟠 Hoog    | Voeg `READ` toe aan `Action` enum en intercepteer lees-operaties           | A.8.15          |
 | 🟠 Hoog    | Verander standaard `auditingStrategy` van `NONE` naar `NONE_EXCEPT`        | A.8.15          |
+| 🟡 Middel  | Registreer `View Audit Log` als `<privilege>` in `config.xml`              | A.8.3           |
+| 🟡 Middel  | Implementeer write-once bescherming voor bestaande log-entries             | A.8.15          |
 | 🟡 Middel  | Behandel unauthenticated/daemon operaties expliciet in interceptor         | A.8.5           |
 | 🟡 Middel  | Voeg `ipAddress` en `sessionId` toe aan `AuditLog`-entity                  | A.8.15          |
-| 🟢 Laag    | Implementeer write-once bescherming voor bestaande log-entries             | A.8.15          |
