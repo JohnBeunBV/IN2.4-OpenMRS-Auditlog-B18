@@ -1,4 +1,4 @@
-name: "CVE-scan – Trivy"
+name: SCA Trivy CVE-scan
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   schedule:
-    - cron: "0 5 * * 1" # elke maandag 06:00 uur (UTC) — wekelijkse scan op kwetsbare dependencies
+    - cron: "0 5 * * 1"
 
 jobs:
   trivy:
@@ -14,23 +14,17 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      security-events: write # SARIF uploaden naar Security tab
+      security-events: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ------------------------------------------------------------------ #
-      # Trivy scant pom.xml rechtstreeks op kwetsbare dependencies          #
-      # Geen API key nodig — gebruikt eigen database                        #
-      # CRITICAL,HIGH → zelfde drempel als eerder (CVSS ≥ 7) mogelijk       #
-      # drempel verlagen                                                     #
-      # ------------------------------------------------------------------ #
       - name: Run Trivy CVE-scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
-          scan-ref: openmrs-module-auditlog
+          scan-ref: .
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
@@ -42,15 +36,12 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
-      # ------------------------------------------------------------------ #
-      # Leesbaar tekstrapport als artifact (download via Actions-tab)       #
-      # ------------------------------------------------------------------ #
       - name: Run Trivy voor leesbaar rapport
         uses: aquasecurity/trivy-action@master
         if: always()
         with:
           scan-type: fs
-          scan-ref: openmrs-module-auditlog
+          scan-ref: .
           format: table
           output: trivy-report.txt
           severity: CRITICAL,HIGH
