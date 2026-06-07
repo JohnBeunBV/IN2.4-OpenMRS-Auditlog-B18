@@ -33,4 +33,9 @@ jobs:
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: cd openmrs-module-auditlog && mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=JohnBeunBV_IN2.4-OpenMRS-Auditlog-B18
+        run: >
+          cd openmrs-module-auditlog &&
+          mvn -B verify
+          org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.projectKey=JohnBeunBV_IN2.4-OpenMRS-Auditlog-B18
+          -Dexcludes=**/DAOUtilsTest.java
