@@ -1,4 +1,4 @@
-﻿/**
+/**
  * The contents of this file are subject to the OpenMRS Public License
  * Version 1.0 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
@@ -60,6 +60,6 @@ public class ViewAuditLogController {
         java.io.PrintWriter writer = response.getWriter();
         writer.println("dateCreated,user,object,action");
         Context.getService(AuditLogService.class).getAuditLogs(null, null, null, null, false, null, null)
-               .forEach(al -> writer.println(al.getDateCreated() + "," + al.getUser() + "," + al.getClassName() + "," + al.getAction()));
+               .forEach(al -> writer.println(al.getDateCreated() + "," + al.getUser() + "," + al.getSimpleTypeName() + "," + al.getAction()));
     }
 }

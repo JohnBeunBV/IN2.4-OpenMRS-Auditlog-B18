@@ -1,0 +1,55 @@
+name: SCA Trivy CVE-scan
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 5 * * 1"
+
+jobs:
+  trivy:
+    name: Trivy CVE-scan
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy CVE-scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Upload SARIF naar GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Run Trivy voor leesbaar rapport
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          output: trivy-report.txt
+          severity: CRITICAL,HIGH
+
+      - name: Upload rapport als artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-rapport
+          path: trivy-report.txt
+          retention-days: 30
