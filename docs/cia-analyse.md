@@ -68,50 +68,7 @@ De CIA-beoordeling (Confidentialiteit, Integriteit, Beschikbaarheid) is herzien 
 
 ## 3. Risicocriteria
 
-### 3.1 Scoreschaal
-
-Risico wordt berekend als: **Risicoscore = Kans × Impact**
-
-#### Kansschaal (Likelihood)
-
-| Score | Label               | Beschrijving                                                            |
-| ----- | ------------------- | ----------------------------------------------------------------------- |
-| 1     | Onwaarschijnlijk    | Alleen mogelijk via fysieke toegang of diepgaande systeemkennis         |
-| 2     | Mogelijk            | Vereist bestaande toegang of specifieke configuratiefouten              |
-| 3     | Waarschijnlijk      | Uitvoerbaar door reguliere geauthenticeerde gebruiker                   |
-| 4     | Zeer waarschijnlijk | Misbruik mogelijk via standaard netwerktoegang of zwakke controles      |
-| 5     | Zeker               | Automatisch of triviaal exploiteerbaar zonder noemenswaardige barrières |
-
-#### Impactschaal (Impact)
-
-| Score | Label           | Beschrijving                                                 |
-| ----- | --------------- | ------------------------------------------------------------ |
-| 1     | Verwaarloosbaar | Geen relevante data-impact                                   |
-| 2     | Laag            | Beperkte datalekken of minimale systeemimpact                |
-| 3     | Middel          | Beperkte patiënt- of systeemdata blootgesteld                |
-| 4     | Hoog            | Grootschalige datalekken of ernstige aantasting audittrail   |
-| 5     | Kritiek         | Patiëntveiligheid, compliance en integriteit zwaar in gevaar |
-
-#### Risicomatrix
-
-|     | 1   | 2   | 3   | 4   | 5   |
-| --- | --- | --- | --- | --- | --- |
-| 5   | 5   | 10  | 15  | 20  | 25  |
-| 4   | 4   | 8   | 12  | 16  | 20  |
-| 3   | 3   | 6   | 9   | 12  | 15  |
-| 2   | 2   | 4   | 6   | 8   | 10  |
-| 1   | 1   | 2   | 3   | 4   | 5   |
-
-**Kleurcodering:**
-
-- 🟢 Groen (1–5) = Acceptabel
-- 🟡 Geel (6–11) = Monitoren
-- 🟠 Oranje (12–17) = Mitigeren vereist
-- 🔴 Rood (18–25) = Kritiek / direct handelen
-
----
-
-### 3.2 Risicobereidheid en grenswaarden
+### 3.1 Risicobereidheid en grenswaarden
 
 Binnen een NEN 7510-2:2024 + AVG gereguleerde zorgcontext geldt een **conservatieve risicohouding**, vooral rond patiëntdata en auditintegriteit.
 
@@ -130,7 +87,7 @@ Binnen een NEN 7510-2:2024 + AVG gereguleerde zorgcontext geldt een **conservati
 
 ---
 
-### 3.3 Initiële risicobeoordeling (op basis van gap-analyse)
+### 3.2 Initiële risicobeoordeling (op basis van gap-analyse)
 
 | ID   | Bevinding                                                           | Kans | Impact | Score | Classificatie |
 | ---- | ------------------------------------------------------------------- | :--: | :----: | :---: | ------------- |
