@@ -1,4 +1,3 @@
-```markdown
 # Bow Tie Analyse — SQL Injection
 
 ## Tabel 1 — Oorzaken & Preventieve Barrières
@@ -28,4 +27,3 @@
 | 3 | Ongeautoriseerde data-extractie | Audit- en loginlogging inschakelen | Informatie |
 | 4 | Data-corruptie of verwijdering | Versleutelde backup & restore procedure | Operationeel |
 | 5 | Reputatieschade en AVG-boetes | Incident response plan activeren | Operationeel |
-```
