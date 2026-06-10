@@ -3,7 +3,7 @@
 **Module:** openmrs-module-auditlog v1.1-SNAPSHOT  
 **Norm:** NEN 7510-2:2024+A1:2026 (Informatiebeveiliging in de zorg — Deel 2: Beheersmaatregelen)  
 **Beoordeeld:** A.8.3 Toegangsbeveiliging, A.8.5 Authenticatie, A.8.15 Logging  
-**Datum:** 2026-06-03  
+**Datum:** 2026-06-10 (Geactualiseerd)  
 **Beoordelaar:** Groep B18
 
 ---
@@ -27,7 +27,7 @@
 | #   | Bevinding                                                                | Status      | Bestand : regel                       |
 | --- | ------------------------------------------------------------------------ | ----------- | ------------------------------------- |
 | 1   | Vijf privileges gedefinieerd in `config.xml`                             | ✅ Aanwezig | `config.xml` : 88–101                 |
-| 2   | DWR-service controleert privilege voor details                           | ✅ Aanwezig | `DWRAuditLogService.java` : 64-128    |
+| 2   | DWR-service controleert privilege voor details                           | ✅ Aanwezig | `DWRAuditLogService.java` : 64–128    |
 | 3   | `PRIV_VIEW_AUDITLOG` gebruikt maar niet geregistreerd in `config.xml`    | ❌ Afwezig  | `AuditLogWebConstants.java` : 21      |
 | 4   | `showForm()` heeft geen enkele toegangscontrole                          | ❌ Afwezig  | `ViewAuditLogController.java` : 41–49 |
 | 5   | `exportAuditLogs()` heeft geen toegangscontrole (missing access control) | ❌ Afwezig  | `ViewAuditLogController.java` : 51–64 |
@@ -37,7 +37,7 @@
 **Bevinding 1 — Privileges wél gedefinieerd in config.xml (✅)**
 
 ```xml
-<!-- config.xml  88-111 -->
+<!-- config.xml 88-111 -->
 <privilege>
     <name>Get Audit Logs</name>
     <description>Able to get audit logs</description>
@@ -62,7 +62,7 @@ public AuditLogDetails getAuditLogDetails(String auditLogUuid) {
 public static final String PRIV_VIEW_AUDITLOG = "View Audit Log";
 ```
 
-Deze privilege-string wordt wél gebruikt in `DWRAuditLogService` maar **staat niet als `<privilege>` in `config.xml`**. De privilege kan dus nooit aan een rol worden toegekend, waardoor de controle op regel 55 in de praktijk altijd faalt of wordt genegeerd.
+Deze privilege-string wordt wél gebruikt in `DWRAuditLogService` maar **staat niet als `<privilege>` in `config.xml`**. De privilege kan dus nooit aan een rol worden toegekend, waardoor de controle in de praktijk altijd faalt of wordt genegeerd.
 
 **Bevinding 4 — `showForm()` zonder toegangscontrole (❌)**
 
@@ -124,8 +124,8 @@ Er vindt geen authenticatie- of autorisatiecontrole plaats. Elke anonieme aanroe
 | #   | Bevinding                                                                | Status          | Bestand : regel                               |
 | --- | ------------------------------------------------------------------------ | --------------- | --------------------------------------------- |
 | 6   | Interceptor registreert de geauthenticeerde gebruiker bij elke log-entry | ✅ Aanwezig     | `HibernateAuditLogInterceptor.java` : 535     |
-| 7   | Unauthenticated transacties worden niet geblokkeerd maar stil verwerkt   | ⚠️ Gedeeltelijk | `HibernateAuditLogInterceptor.java` : 381-471 |
-| 8   | Export-endpoint vereist geen authenticatie                               | ❌ Afwezig      | `ViewAuditLogController.java` : 56-64         |
+| 7   | Unauthenticated transacties worden niet geblokkeerd maar stil verwerkt   | ⚠️ Gedeeltelijk | `HibernateAuditLogInterceptor.java` : 381–471 |
+| 8   | Export-endpoint vereist geen authenticatie                               | ❌ Afwezig      | `ViewAuditLogController.java` : 56–64         |
 
 ### Bewijs
 
@@ -166,6 +166,8 @@ De `TODO`-comment bevestigt dat operaties door niet-ingelogde gebruikers (daemon
 public void exportAuditLogs(String userId, HttpServletResponse response) throws IOException {
     // Geen: Context.isAuthenticated() check
     // Geen: requirePrivilege()
+    ...
+}
 ```
 
 ### Huidig vs. gewenst
@@ -192,11 +194,12 @@ public void exportAuditLogs(String userId, HttpServletResponse response) throws 
 | --- | ------------------------------------------------------------------- | --------------- | --------------------------------------------- |
 | 9   | CREATED, UPDATED en DELETED worden gelogd via Hibernate-interceptor | ✅ Aanwezig     | `HibernateAuditLogInterceptor.java` : 134–248 |
 | 10  | Logvelden: type, identifier, actie, gebruiker, tijdstip, versie     | ✅ Aanwezig     | `AuditLog.java` : 38–62                       |
-| 11  | READ-acties worden niet gelogd                                      | ❌ Afwezig      | `AuditLog.java` 64-66                         |
-| 12  | Standaardstrategie is `NONE` — er wordt standaard niets gelogd      | ❌ Afwezig      | `config.xml` : 47-54                          |
+| 11  | READ-acties worden niet gelogd                                      | ❌ Afwezig      | `AuditLog.java` : 64–66                       |
+| 12  | Standaardstrategie is `NONE` — er wordt standaard niets gelogd      | ❌ Afwezig      | `config.xml` : 47–54                          |
 | 13  | Geen IP-adres of sessie-ID vastgelegd                               | ❌ Afwezig      | `AuditLog.java` (ontbrekend veld)             |
 | 14  | Auditlogs zijn muteerbaar — geen integriteitsbeveiliging            | ⚠️ Gedeeltelijk | `AuditLog.java` : setters                     |
 | 15  | Directe databasetoegang omzeilt logging volledig                    | ⚠️ Gedeeltelijk | `HibernateAuditLogInterceptor.java` (javadoc) |
+| 16  | Ernstige SQL-injectie in zoekfunctie (Threat Model & Code Scan)     | ❌ Afwezig      | `AuditLogServiceImpl.java` (DAO-laag)         |
 
 ### Bewijs
 
@@ -225,14 +228,14 @@ public void onDelete(Object entity, ...) {           // DELETE → DELETED
 
 ```java
 // AuditLog.java : 38–62
-private Class<?>    type;          // entiteitstype
-private Serializable identifier;   // primaire sleutel
-private Action      action;        // CREATED | UPDATED | DELETED
-private User        user;          // wie
-private Date        dateCreated;   // wanneer
-private String      openmrsVersion;
-private String      moduleVersion;
-private Blob        serializedData; // oude/nieuwe waarden
+private Class<?>     type;           // entiteitstype
+private Serializable identifier;     // primaire sleutel
+private Action       action;         // CREATED | UPDATED | DELETED
+private User         user;           // wie
+private Date         dateCreated;    // wanneer
+private String       openmrsVersion;
+private String       moduleVersion;
+private Blob         serializedData; // oude/nieuwe waarden
 ```
 
 **Bevinding 11 — Enum `Action` mist READ (❌)**
@@ -253,7 +256,7 @@ Raadpleging van patiëntgegevens via de applicatie wordt nooit gelogd. Dit is ee
 <!-- config.xml : 47–54 -->
 <globalProperty>
     <property>auditlog.auditingStrategy</property>
-    <defaultValue>NONE</defaultValue>  <!-- ← bij installatie: geen logging -->
+    <defaultValue>NONE</defaultValue>
     <description>
         Allowed values are: ALL, ALL_EXCEPT, NONE, NONE_EXCEPT
     </description>
@@ -296,42 +299,60 @@ Een gebruiker met databasetoegang of voldoende applicatierechten kan bestaande a
 
 Dit is een inherente architectuurbeperking die in de javadoc is erkend maar niet gemitigeerd. SQL-injecties, directe DB-scripts of ETL-processen laten geen spoor achter.
 
+**Bevinding 16 — SQL-injectie in `searchAuditLogsByUser` (❌)**
+
+```java
+// AuditLogServiceImpl.java (DAO-laag)
+/**
+ * Searches audit log entries by user display name.
+ * VULNERABILITY: SQL injection - userDisplayName is not sanitized before SQL concatenation
+ */
+public java.util.List<?> searchAuditLogsByUser(String userDisplayName) {
+    String sql = "SELECT * FROM audit_log WHERE user_display = '"
+                 + userDisplayName + "' ORDER BY date_created DESC";
+    return sessionFactory.getCurrentSession().createSQLQuery(sql).list();
+}
+```
+
+De gebruikersinvoer (`userDisplayName`) wordt direct in de SQL-query geconcateneerd zonder enige validatie of parameterisering. Een aanvaller kan hiermee willekeurige SQL-commando's uitvoeren. De impact gaat verder dan ongeautoriseerde leestoegang: via `DROP TABLE`, `DELETE FROM audit_log` of `UPDATE`-statements kunnen auditlogs volledig worden gewist of gemanipuleerd. Dit ondermijnt rechtstreeks de betrouwbaarheid en bewijskracht van het gehele logsysteem en vormt daarmee een kritieke schending van A.8.15. Omdat dezelfde kwetsbaarheid ook de toegangsbeveiliging (A.8.3) omzeilt, is de impact cross-cutting.
+
 ### Huidig vs. gewenst
 
-| Aspect           | Huidig                 | Gewenst (NEN 7510-2 A.8.15)                                             |
-| ---------------- | ---------------------- | ----------------------------------------------------------------------- |
-| Mutaties (C/U/D) | Gelogd via interceptor | ✅ Conform                                                              |
-| Raadpleging (R)  | Niet gelogd            | READ-actie toevoegen aan `Action` enum + interceptie                    |
-| Standaard actief | `NONE` (inactief)      | Minimaal `NONE_EXCEPT` als veilige standaard; actieve configuratiecheck |
-| Netwerkcontext   | Geen IP/sessie         | IP-adres en sessie-ID toevoegen aan `AuditLog`-entity                   |
-| Integriteit logs | Volledig muteerbaar    | Write-once tabel of hashketen ter bescherming                           |
-| DB-bypass        | Geen mitigatie         | Database-niveau triggers of melding bij directe wijziging               |
+| Aspect           | Huidig                                      | Gewenst (NEN 7510-2 A.8.15)                                             |
+| ---------------- | ------------------------------------------- | ----------------------------------------------------------------------- |
+| Mutaties (C/U/D) | Gelogd via interceptor                      | ✅ Conform                                                              |
+| Raadpleging (R)  | Niet gelogd                                 | READ-actie toevoegen aan `Action` enum + interceptie                    |
+| Standaard actief | `NONE` (inactief)                           | Minimaal `NONE_EXCEPT` als veilige standaard; actieve configuratiecheck |
+| Netwerkcontext   | Geen IP/sessie                              | IP-adres en sessie-ID toevoegen aan `AuditLog`-entity                   |
+| Integriteit logs | Volledig muteerbaar + SQL-injectie gevoelig | Geparameteriseerde queries (geen SQL-i); write-once tabel of hashketen  |
+| DB-bypass        | Geen mitigatie                              | Database-niveau triggers of melding bij directe wijziging               |
 
 ### Gap (A.8.15)
 
-> **Aanzienlijk.** De basis-logging (wie veranderde wat, wanneer) is aanwezig, maar de configuratie, volledigheid en integriteit voldoen niet aan A.8.15. De meest kritieke gap is het ontbreken van READ-logging: in een zorgcontext is raadpleging van patiëntgegevens een even relevante beveiligingsgebeurtenis als mutatie. Daarnaast maakt de standaard `NONE`-strategie en de volledig muteerbare datastructuur de module onbetrouwbaar als compliance-instrument.
+> **Kritiek.** De basis-logging (wie veranderde wat, wanneer) is aanwezig, maar de betrouwbaarheid en integriteit vallen volledig om door de aanwezige SQL-injectie in de zoekfunctie. Een kwaadwillende kan logbestanden corrumperen of volledig wissen, wat de bewijskracht van de auditlog tenietdoet. Daarnaast ontbreekt READ-logging (onacceptabel binnen de zorgcontext) en maakt de standaard `NONE`-strategie de module out-of-the-box non-compliant.
 
 ---
 
 ## Samenvatting gap-analyse
 
-| Control                       | Status          | Kritiekste bevinding                                                                    |
-| ----------------------------- | --------------- | --------------------------------------------------------------------------------------- |
-| **A.8.3** Toegangsbeveiliging | ❌ Onvoldoende  | Export-endpoint volledig onbeveiligd; `View Audit Log` privilege niet geregistreerd     |
-| **A.8.5** Authenticatie       | ⚠️ Gedeeltelijk | Unauthenticated transacties produceren logs zonder eigenaar; export vereist geen sessie |
-| **A.8.15** Logging            | ⚠️ Gedeeltelijk | Geen READ-logging; standaard NONE; auditlogs muteerbaar                                 |
+| Control                       | Status          | Kritiekste bevinding                                                                                           |
+| ----------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
+| **A.8.3** Toegangsbeveiliging | ❌ Onvoldoende  | Export-endpoint volledig onbeveiligd; `View Audit Log` privilege niet geregistreerd                            |
+| **A.8.5** Authenticatie       | ⚠️ Gedeeltelijk | Unauthenticated transacties produceren logs zonder eigenaar; export vereist geen sessie                        |
+| **A.8.15** Logging            | ❌ Onvoldoende  | SQL-injectie in zoekfunctie maakt log-manipulatie mogelijk; geen READ-logging; standaard NONE; logs muteerbaar |
 
 ---
 
 ## Aanbevolen acties (actieplan)
 
-| Prioriteit | Actie                                                                      | Norm-referentie |
-| ---------- | -------------------------------------------------------------------------- | --------------- |
-| 🔴 Kritiek | Verwijder of beveilig `exportAuditLogs()` met `Context.requirePrivilege()` | A.8.3, A.8.5    |
-| 🟠 Hoog    | Voeg `Context.requirePrivilege()` toe aan `showForm()`                     | A.8.3           |
-| 🟠 Hoog    | Voeg `READ` toe aan `Action` enum en intercepteer lees-operaties           | A.8.15          |
-| 🟠 Hoog    | Verander standaard `auditingStrategy` van `NONE` naar `NONE_EXCEPT`        | A.8.15          |
-| 🟡 Middel  | Registreer `View Audit Log` als `<privilege>` in `config.xml`              | A.8.3           |
-| 🟡 Middel  | Implementeer write-once bescherming voor bestaande log-entries             | A.8.15          |
-| 🟡 Middel  | Behandel unauthenticated/daemon operaties expliciet in interceptor         | A.8.5           |
-| 🟡 Middel  | Voeg `ipAddress` en `sessionId` toe aan `AuditLog`-entity                  | A.8.15          |
+| Prioriteit | Actie                                                                                     | Norm-referentie |
+| ---------- | ----------------------------------------------------------------------------------------- | --------------- |
+| 🔴 Kritiek | Herschrijf `searchAuditLogsByUser` naar een geparameteriseerde query (prepared statement) | A.8.15, A.8.3   |
+| 🔴 Kritiek | Verwijder of beveilig `exportAuditLogs()` met `Context.requirePrivilege()`                | A.8.3, A.8.5    |
+| 🟠 Hoog    | Voeg `Context.requirePrivilege()` toe aan `showForm()`                                    | A.8.3           |
+| 🟠 Hoog    | Voeg `READ` toe aan `Action` enum en intercepteer lees-operaties                          | A.8.15          |
+| 🟠 Hoog    | Verander standaard `auditingStrategy` van `NONE` naar `NONE_EXCEPT`                       | A.8.15          |
+| 🟡 Middel  | Registreer `View Audit Log` als `<privilege>` in `config.xml`                             | A.8.3           |
+| 🟡 Middel  | Implementeer write-once bescherming voor bestaande log-entries                            | A.8.15          |
+| 🟡 Middel  | Behandel unauthenticated/daemon operaties expliciet in interceptor                        | A.8.5           |
+| 🟡 Middel  | Voeg `ipAddress` en `sessionId` toe aan `AuditLog`-entity                                 | A.8.15          |

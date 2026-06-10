@@ -2,7 +2,7 @@
 
 **Project:** IN2.4 – OpenMRS Auditlog Module  
 **Groep:** B18  
-**Datum:** Juni 2026  
+**Datum:** Juni 2026 (Geactualiseerd)  
 **Norm:** NEN 7510-2:2024+A1:2026
 
 ---
@@ -72,6 +72,12 @@ De CIA-beoordeling (Confidentialiteit, Integriteit, Beschikbaarheid) is herzien 
 
 Binnen een NEN 7510-2:2024 + AVG gereguleerde zorgcontext geldt een **conservatieve risicohouding**, vooral rond patiëntdata en auditintegriteit.
 
+Risico wordt berekend als: **Risico = Kans × Impact**, waarbij **Kans = Blootstelling × Waarschijnlijkheid**.
+
+- **Blootstelling:** is de kwetsbaarheid aanwezig en bereikbaar vanuit de aanvalspositie?
+- **Waarschijnlijkheid:** hoe groot is de kans dat een kwaadwillende de kwetsbaarheid daadwerkelijk benut?
+- **Impact:** ernst van de gevolgen voor Confidentialiteit, Integriteit en/of Beschikbaarheid, inclusief financiële schade, schade aan patiëntveiligheid, reputatieschade en juridische gevolgen (AVG-boetes).
+
 | Grenswaarde     | Risicoscore | Actie                                         | Termijn        |
 | --------------- | ----------- | --------------------------------------------- | -------------- |
 | Acceptatiegrens | ≤ 5         | Accepteren en registreren                     | Normale review |
@@ -87,34 +93,66 @@ Binnen een NEN 7510-2:2024 + AVG gereguleerde zorgcontext geldt een **conservati
 
 ---
 
-### 3.2 Initiële risicobeoordeling (op basis van gap-analyse)
+### 3.2 Initiële risicobeoordeling (op basis van gap-analyse, threat model en code-scan)
 
 | ID   | Bevinding                                                           | Kans | Impact | Score | Classificatie |
 | ---- | ------------------------------------------------------------------- | :--: | :----: | :---: | ------------- |
 | R-01 | Export endpoint zonder autorisatiecontrole (missing access control) |  4   |   5    |  20   | 🔴 Kritiek    |
+| R-11 | SQL-injectie in `searchAuditLogsByUser()` (CWE-89)                  |  4   |   5    |  21   | 🔴 Kritiek    |
 | R-02 | `showForm()` zonder toegangscontrole                                |  4   |   4    |  16   | 🟠 Mitigeren  |
-| R-03 | Ontbrekende/incorrecte privilege-registratie                        |  3   |   3    |   9   | 🟡 Toezicht   |
 | R-04 | Default auditingStrategy = NONE                                     |  4   |   4    |  16   | 🟠 Mitigeren  |
 | R-05 | READ-acties niet gelogd in auditmechanisme                          |  4   |   4    |  16   | 🟠 Mitigeren  |
 | R-06 | AuditLog object mutabel via setters                                 |  2   |   5    |  10   | 🟡 Toezicht   |
-| R-07 | System/daemon acties loggen zonder user-context                     |  2   |   3    |   6   | 🟡 Toezicht   |
+| R-10 | Verouderde OpenMRS-versie (potentiële CVE-exposure)                 |  3   |   3    |   9   | 🟡 Toezicht   |
+| R-03 | Ontbrekende/incorrecte privilege-registratie                        |  3   |   3    |   9   | 🟡 Toezicht   |
 | R-08 | Geen IP-adres of sessie-ID in auditrecords                          |  3   |   3    |   9   | 🟡 Toezicht   |
 | R-09 | DB-level toegang omzeilt auditmechanisme                            |  2   |   4    |   8   | 🟡 Toezicht   |
-| R-10 | Verouderde OpenMRS-versie (potentiële CVE-exposure)                 |  3   |   3    |   9   | 🟡 Toezicht   |
+| R-07 | System/daemon acties loggen zonder user-context                     |  2   |   3    |   6   | 🟡 Toezicht   |
+
+> **Toelichting R-11:** R-11 scoort hoger dan R-01 vanwege de combinatie van vertrouwelijkheid én integriteitsimpact. De SQL-injectie stelt een aanvaller niet alleen in staat de audittrail ongeautoriseerd uit te lezen (confidentialiteit, gelijk aan R-01), maar ook om log-entries te wijzigen of te wissen (integriteit). Daarmee is de audittrail als forensisch bewijsmiddel volledig onbetrouwbaar te maken, wat in een zorgcontext direct in strijd is met NEN 7510-2 A.8.15 en de AVG-verantwoordingsplicht (art. 5 lid 2). Kans = 4 op basis van: kwetsbaarheid aantoonbaar aanwezig in de codebase (blootstelling hoog) en SQL-injectie behoort tot OWASP Top 10 met breed beschikbare exploittechnieken (waarschijnlijkheid hoog).
+
+---
+
+### 3.3 Bow-tie analyse: SQL-injectie (R-11)
+
+De bow-tie methode brengt zowel de oorzaken (dreigingen links) als de gevolgen (rechts) van het top event in kaart, samen met de barrières die kans en impact reduceren.
+
+**Top event:** SQL-injectie succesvol uitgevoerd via `searchAuditLogsByUser()`
+
+#### Oorzaken & preventieve barrières (kansreductie)
+
+| #   | Oorzaak (dreiging)                                                    | Preventieve barrière                                                               |
+| --- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | Gebruikersinvoer zonder validatie direct in SQL-string geconcateneerd | Input-validatie: saniteer alle invoer vóór verwerking                              |
+| 2   | Gebruik van `createSQLQuery()` met dynamische string-opbouw           | Vervang door Hibernate parameter binding (`setParameter()`) of HQL                 |
+| 3   | Geen ORM-laag als beschermende abstractie voor deze query             | Gebruik een query builder die SQL automatisch escapet                              |
+| 4   | Te brede databaserechten voor de applicatiegebruiker                  | Verbind met de database via een least-privilege account (geen DROP/DELETE-rechten) |
+
+#### Gevolgen & mitigerende barrières (impactreductie)
+
+| #   | Gevolg                                          | Mitigerende barrière                                                    | CIA-dimensie           |
+| --- | ----------------------------------------------- | ----------------------------------------------------------------------- | ---------------------- |
+| 1   | Volledige audittrail ongeautoriseerd uitgelezen | Versleuteling van `serializedData` at rest (TDE/CLE)                    | Confidentialiteit      |
+| 2   | Auditlog-entries gewijzigd of gewist            | Audit- en loginlogging op databaseniveau inschakelen (MySQL binary log) | Integriteit            |
+| 3   | Forensisch bewijs vernietigd na incident        | Versleutelde backup & restore procedure met off-site kopie              | Integriteit            |
+| 4   | AVG-meldplicht getriggerd (art. 33)             | Incident response plan activeren; DPA-melding binnen 72 uur             | Juridisch/Operationeel |
+| 5   | Reputatieschade zorginstelling                  | Transparante communicatie richting patiënten en toezichthouder          | Operationeel           |
 
 ---
 
 ## 4. Referenties
 
-| Bestand                             | Relevantie                                           |
-| ----------------------------------- | ---------------------------------------------------- |
-| `AuditLog.java`                     | Definitie auditlog-entiteit en mutabele structuur    |
-| `AuditLog.hbm.xml`                  | ORM mapping van audittrail (DB persistentie)         |
-| `HibernateAuditLogInterceptor.java` | Generatie auditrecords + user-context + serialisatie |
-| `ViewAuditLogController.java`       | Export- en view endpoints (R-01, R-02)               |
-| `config.xml`                        | Auditstrategie + privilegeconfiguratie (R-03, R-04)  |
-| `AuditLogWebConstants.java`         | Privilege-definities                                 |
-| `liquibase.xml`                     | Database schema auditlog tabel                       |
-| Gap-analyse document                | Bron voor alle R-01 t/m R-10 bevindingen             |
-| NEN 7510-2:2024+A1:2026             | Normatieve basis (A.8 logging & toegangscontrole)    |
-| AVG (art. 33)                       | Meldplicht datalekken                                |
+| Bestand                             | Relevantie                                                  |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `AuditLog.java`                     | Definitie auditlog-entiteit en mutabele structuur           |
+| `AuditLog.hbm.xml`                  | ORM mapping van audittrail (DB persistentie)                |
+| `HibernateAuditLogInterceptor.java` | Generatie auditrecords + user-context + serialisatie        |
+| `ViewAuditLogController.java`       | Export- en view endpoints (R-01, R-02)                      |
+| `AuditLogServiceImpl.java`          | SQL-injectie kwetsbaarheid `searchAuditLogsByUser()` (R-11) |
+| `config.xml`                        | Auditstrategie + privilegeconfiguratie (R-03, R-04)         |
+| `AuditLogWebConstants.java`         | Privilege-definities                                        |
+| `liquibase.xml`                     | Database schema auditlog tabel                              |
+| Gap-analyse document                | Bron voor alle R-01 t/m R-10, R-11 bevindingen              |
+| Threat model (B18)                  | Identificatie R-11; SQL-injectie als aanvalsvector          |
+| NEN 7510-2:2024+A1:2026             | Normatieve basis (A.8 logging & toegangscontrole)           |
+| AVG (art. 33)                       | Meldplicht datalekken                                       |
