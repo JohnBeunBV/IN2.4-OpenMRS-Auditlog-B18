@@ -16,11 +16,13 @@ package org.openmrs.module.auditlog.web.controller;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.auditlog.AuditLog;
 import org.openmrs.module.auditlog.api.AuditLogService;
 import org.openmrs.module.auditlog.util.AuditLogConstants;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestMapping;
+import java.util.List;
 
 /**
  * This class configured as controller using annotation and mapped with the URL of
@@ -59,7 +61,17 @@ public class ViewAuditLogController {
         response.setHeader("Content-Disposition", "attachment; filename=audit_export.csv");
         java.io.PrintWriter writer = response.getWriter();
         writer.println("dateCreated,user,object,action");
-        Context.getService(AuditLogService.class).getAuditLogs(null, null, null, null, false, null, null)
-               .forEach(al -> writer.println(al.getDateCreated() + "," + al.getUser() + "," + al.getSimpleTypeName() + "," + al.getAction()));
+		List<AuditLog> logs =
+				Context.getService(AuditLogService.class)
+					.getAuditLogs(null, null, null, null, false, null, null);
+
+		for (AuditLog al : logs) {
+			writer.println(
+				al.getDateCreated() + "," +
+				al.getUser() + "," +
+				al.getSimpleTypeName() + "," +
+				al.getAction()
+			);
+		}
     }
 }
