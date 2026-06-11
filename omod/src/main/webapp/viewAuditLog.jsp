@@ -5,7 +5,7 @@
 <%@ include file="/WEB-INF/view/module/auditlog/include.jsp"%>
 
 <openmrs:require privilege="View Audit Log" otherwise="/login.htm"
-                 redirect="/module/${moduleId}/viewAuditLog.htm"/>
+                 redirect="/module/auditlog/viewAuditLog.htm"/>
 
 <%@ include file="template/localHeader.jsp"%>
 
@@ -121,7 +121,7 @@
                 (<span id="${moduleId}-childLogCount"></span>)
             </b>
             <img align="top" src="<openmrs:contextPath />/images/help.gif" border="0"
-                 title="<openmrs:message code="${moduleId}.associatedLogDetails.help" />" />
+                title="<spring:message code="${moduleId}.associatedLogDetails.help" />" />
         </td>
     </tr>
     <tr class="${moduleId}-childAuditLogDetails-element">
@@ -201,7 +201,7 @@
                 (<span id="${moduleId}-child-childLogCount"></span>)
             </b>
             <img align="top" src="<openmrs:contextPath />/images/help.gif" border="0"
-                 title="<openmrs:message code="${moduleId}.associatedLogDetails.help" />" />
+                 title="<spring:message code="${moduleId}.associatedLogDetails.help" />" />
         </td>
     </tr>
     <tr class="${moduleId}-childAuditLogDetails-element">
