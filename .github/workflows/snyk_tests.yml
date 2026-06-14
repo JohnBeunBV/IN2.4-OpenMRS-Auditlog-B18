@@ -31,14 +31,14 @@ jobs:
       - name: Snyk Open Source test (dependencies)
         id: snyk-test
         continue-on-error: true
-        run: snyk test --sarif-file-output=snyk-test.sarif
+        run: snyk test --sarif-file-output=snyk-test.sarif --org=aibopeeters
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Snyk Code test (SAST)
         id: snyk-code
         continue-on-error: true
-        run: snyk code test --sarif-file-output=snyk-code.sarif
+        run: snyk code test --sarif-file-output=snyk-code.sarif --org=aibopeeters
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
