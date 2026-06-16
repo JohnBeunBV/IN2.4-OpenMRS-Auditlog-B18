@@ -1,0 +1,61 @@
+name: Snyk Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - test
+  pull_request:
+    branches:
+      - main
+      - dev
+      - test
+  schedule:
+    - cron: '0 3 * * 1'
+
+jobs:
+  snyk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Code uitchecken
+        uses: actions/checkout@v4
+
+      - name: Snyk CLI installeren
+        uses: snyk/actions/setup@master
+
+      - name: Snyk Open Source test (dependencies)
+        id: snyk-test
+        continue-on-error: true
+        run: snyk test --sarif-file-output=snyk-test.sarif --org=aibopeeters
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Code test (SAST)
+        id: snyk-code
+        continue-on-error: true
+        run: snyk code test --sarif-file-output=snyk-code.sarif --org=aibopeeters
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Open Source resultaten uploaden naar Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-test.sarif
+          category: snyk-open-source
+
+      - name: Code resultaten uploaden naar Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-code.sarif
+          category: snyk-code
+
+      - name: Job laten falen bij gevonden kwetsbaarheden
+        if: steps.snyk-test.outcome == 'failure' || steps.snyk-code.outcome == 'failure'
+        run: exit 1
