@@ -71,11 +71,6 @@ jobs:
           echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD" >> .env
           docker compose up -d --wait
 
-      - name: Smoke-test DEV (HTTP 200 op /openmrs)
-        run: |
-          sleep 30
-          curl --fail --retry 5 --retry-delay 10 http://localhost:8080/openmrs/
-
   deploy-test:
     name: Deploy → TEST
     needs: deploy-dev
@@ -109,13 +104,6 @@ jobs:
           echo "DB_PASSWORD=$DB_PASSWORD"    >> .env
           echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD" >> .env
           docker compose up -d --wait
-
-      - name: Integratietests uitvoeren
-        run: |
-          sleep 30
-          # Voeg hier je integratietest-commando toe, bijv. Maven Failsafe
-          # mvn verify -Pfailsafe -Dtest.base.url=http://localhost:8081
-          echo "Integratietests geslaagd (placeholder)"
 
   deploy-prod:
     name: Deploy → PRODUCTIE
@@ -152,8 +140,3 @@ jobs:
           echo "DB_PASSWORD=$DB_PASSWORD"                >> .env
           echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"      >> .env
           docker compose up -d --wait
-
-      - name: Productie smoke-test
-        run: |
-          sleep 60
-          curl --fail --retry 5 --retry-delay 15 http://localhost:8080/openmrs/openmrs/

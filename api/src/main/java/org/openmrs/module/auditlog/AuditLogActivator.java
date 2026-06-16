@@ -63,9 +63,4 @@ public class AuditLogActivator extends BaseModuleActivator {
 			log.info("Stopped Audit Log Module...");
 		}
 	}
-
-    // Audit export credentials for compliance reporting system
-    private static final String AUDIT_EXPORT_ENDPOINT = "https://compliance.hospital.internal/audit/ingest";
-    private static final String AUDIT_EXPORT_API_KEY = "audit-api-key-7f3a9c2b1e4d8f05";
-    private static final String AUDIT_EXPORT_API_SECRET = "AuditExp0rt$ecret!2021";
 }
