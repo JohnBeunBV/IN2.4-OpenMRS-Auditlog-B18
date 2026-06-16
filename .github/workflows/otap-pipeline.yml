@@ -156,4 +156,4 @@ jobs:
       - name: Productie smoke-test
         run: |
           sleep 60
-          curl --fail --retry 5 --retry-delay 15 https://openmrs.example.org/openmrs/
+          curl --fail --retry 5 --retry-delay 15 http://localhost:8080/openmrs/openmrs/

@@ -63,9 +63,7 @@ public class AuditLogHelper implements GlobalPropertyListener {
 		if (auditingStrategyCache == null) {
 			String gpValue = Context.getAdministrationService().getGlobalProperty(AuditLogConstants.GP_AUDITING_STRATEGY);
 			if (StringUtils.isBlank(gpValue)) {
-				//Defaults to none, we can't cache this so sorry but we will have to hit the DB
-				//for the GP value until it gets set so that we only cache a set value
-				return AuditStrategy.NONE;
+				return AuditStrategy.ALL;
 			} else {
 				try {
 					auditingStrategyCache = getAuditStrategyFromString(gpValue);

@@ -74,7 +74,7 @@
 	
 	<!-- Maps hibernate file's, if present -->
 	<mappingFiles>
-		AuditLog.hbm.xml			
+		AuditLog.hbm.xml		
 	</mappingFiles>
 
 	<!-- Internationalization -->
@@ -110,5 +110,12 @@
         <description>Able to get manage the audit log</description>
     </privilege>
 
-</module>
+    <!-- SEC-05 FIX: 'View Audit Log' privilege toegevoegd.
+         Was aanwezig als constante in AuditLogWebConstants en gebruikt in DWRAuditLogService,
+         maar ontbrak in config.xml waardoor het niet toewijsbaar was via de OpenMRS-beheerinterface. -->
+    <privilege>
+        <name>View Audit Log</name>
+        <description>Able to view audit log entries in the web interface</description>
+    </privilege>
 
+</module>

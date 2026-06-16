@@ -3,21 +3,15 @@ version: "3.9"
 services:
  
   openmrs:
-    image: openmrs/openmrs-reference-application-distro:2.12.2
+    image: tomcat:7-jre7
     container_name: auditlog-openmrs
     restart: unless-stopped
+    ports:
+      - "8080:8080"
     volumes:
-      - openmrs-data:/usr/local/tomcat/.OpenMRS
-      - ../build/auditlog.omod:/usr/local/tomcat/.OpenMRS/modules/auditlog.omod:ro
-    environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_NAME}
-      DB_USERNAME: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_CREATE_TABLES: "true"
-      DB_AUTO_UPDATE: "true"
-      MODULE_WEB_ADMIN: "true"
+      - openmrs-data:/root/.OpenMRS
+      - ./openmrs.war:/usr/local/tomcat/webapps/openmrs.war
+      - ./omod/target/auditlog-1.1-SNAPSHOT.omod:/root/.OpenMRS/modules/auditlog.omod:ro
     depends_on:
       db:
         condition: service_healthy
@@ -25,9 +19,17 @@ services:
       - auditlog-net
  
   db:
-    image: mysql:8.0.43
+    image: mysql:5.7
     container_name: auditlog-db
     restart: unless-stopped
+    command: >
+      --character-set-server=utf8
+      --collation-server=utf8_general_ci
+      --lower_case_table_names=1
+      --sql_mode=""
+      --wait_timeout=28800
+      --interactive_timeout=28800
+      --max_allowed_packet=64M
     environment:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
@@ -36,10 +38,21 @@ services:
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test:
+        - "CMD"
+        - "mysql"
+        - "-h"
+        - "127.0.0.1"
+        - "-u"
+        - "${DB_USER}"
+        - "-p${DB_PASSWORD}"
+        - "-e"
+        - "SELECT 1 FROM information_schema.tables LIMIT 1;"
+        - "${DB_NAME}"
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 15
+      start_period: 45s
     networks:
       - auditlog-net
  

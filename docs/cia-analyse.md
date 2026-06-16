@@ -1,161 +1,158 @@
 # CIA-analyse: openmrs-module-auditlog v1.1-SNAPSHOT
+
 **Project:** IN2.4 – OpenMRS Auditlog Module  
 **Groep:** B18  
-**Datum:** Juni 2026  
+**Datum:** Juni 2026 (Geactualiseerd)  
 **Norm:** NEN 7510-2:2024+A1:2026
 
 ---
 
 ## 1. Kroonjuwelen (Crown Jewels)
 
-De module draait binnen OpenMRS, een elektronisch medisch dossier (EMD) dat in zorgomgevingen patiëntgegevens beheert. De auditlog-module is daarbinnen verantwoordelijk voor het bijhouden van *wie* welke wijziging heeft doorgevoerd. De kroonjuwelen zijn daarmee tweeledig: de patiëntgegevens zelf én de integriteit van de audittrail die toezicht op die gegevens mogelijk maakt.
+De module draait binnen OpenMRS, een elektronisch medisch dossier (EMD) dat in zorgomgevingen patiëntgegevens beheert. De auditlog-module is daarbinnen verantwoordelijk voor het bijhouden van wie welke wijziging heeft doorgevoerd. De kroonjuwelen zijn daarmee tweeledig: de patiëntgegevens zelf én de integriteit van de audittrail die toezicht op die gegevens mogelijk maakt.
 
 ### 1.1 Kroonjuweel 1 – Audittrail (de `auditlog`-tabel)
 
-| Attribuut | Detail |
-|-----------|--------|
-| **Beschrijving** | Alle log-entries van mutaties (CREATED, UPDATED, DELETED) op OpenMRS-entiteiten, inclusief user-koppeling, timestamp, entiteitstype en geserialiseerde voor/na-waarden. |
-| **Locatie in code** | `AuditLog.java` (klasse-definitie), `AuditLog.hbm.xml` (Hibernate-mapping), `liquibase.xml` (DB-schema) |
-| **Verwerkte gegevens** | Gebruiker die mutatie uitvoerde (`User user`), datum/tijd (`Date dateCreated`), object-identifier (`Serializable identifier`), actie (`Action action`), geserialiseerde data (`Blob serializedData`) |
-| **Relevantie** | Als de audittrail wordt gemanipuleerd of uitgelekt, kunnen sporen van misbruik worden verborgen of worden alle patiëntmutaties inzichtelijk voor onbevoegden. |
-| **Referenties** | `AuditLog.java` r.38–62; `AuditLog.hbm.xml`; `liquibase.xml` |
+| Attribuut              | Detail                                                                                                                                                                                                                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Beschrijving**       | Auditlog van mutaties op OpenMRS-objecten. Voor iedere gebeurtenis wordt vastgelegd welk object is gewijzigd, welke actie is uitgevoerd (`CREATED`, `UPDATED`, `DELETED`), door welke gebruiker, op welk tijdstip en welke auditdata aan de wijziging is gekoppeld.                 |
+| **Locatie in code**    | `AuditLog.java` (klasse-definitie), `AuditLog.hbm.xml` (Hibernate-mapping), `liquibase.xml` (databasetabel `auditlog_audit_log`)                                                                                                                                                    |
+| **Verwerkte gegevens** | Gebruiker die de mutatie uitvoerde (`User user`), datum/tijd (`Date dateCreated`), objecttype (`Class<?> type`), object-identificatie (`Serializable identifier`), uitgevoerde actie (`Action action`), geserialiseerde auditdata (`Blob serializedData`) met wijzigingsinformatie. |
+| **Relevantie**         | De audittrail ondersteunt controleerbaarheid en forensisch onderzoek van wijzigingen binnen het EPD. Manipulatie kan sporen van ongeautoriseerde activiteiten verbergen; ongeautoriseerde inzage kan inzicht geven in wijzigingen aan patiëntgerelateerde gegevens.                 |
+| **Referenties**        | `AuditLog.java` r.29–70 (attributen en `Action`-enum), `AuditLog.java` r.54–58 (`serializedData`), `AuditLog.hbm.xml`, `liquibase.xml`                                                                                                                                              |
 
 ### 1.2 Kroonjuweel 2 – Patiëntgegevens in geserialiseerde vorm
 
-| Attribuut | Detail |
-|-----------|--------|
-| **Beschrijving** | Bij elke UPDATE of DELETE worden de vorige veldwaarden van het patiëntobject geserialiseerd als JSON in het `serializedData` Blob-veld. Dit kan medische gegevens bevatten (diagnoses, medicatie, labwaarden). |
-| **Locatie in code** | `HibernateAuditLogInterceptor.java` r.134–248 (serialisatie bij onFlushDirty/onDelete); `AuditLog.java` r.55 |
-| **Verwerkte gegevens** | Afhankelijk van de geconfigureerde auditingstrategie: alle of geselecteerde domeinobjecten inclusief `Patient`, `Obs`, `Encounter`, `DrugOrder` etc. |
-| **Relevantie** | Een dump van de auditlog bevat feitelijk een historisch archief van patiëntgegevens, inclusief verwijderde records. |
-| **Referenties** | `HibernateAuditLogInterceptor.java` r.395–471; `AuditLogConstants.GP_STORE_LAST_STATE_OF_DELETED_ITEMS` |
+| Attribuut              | Detail                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Beschrijving**       | Bij wijzigingen (`UPDATE`) worden gewijzigde veldwaarden geserialiseerd en als JSON opgeslagen in het veld `serializedData`. Bij verwijderingen (`DELETE`) kan optioneel de laatste toestand van het object worden opgeslagen, afhankelijk van de configuratie (`GP_STORE_LAST_STATE_OF_DELETED_ITEMS`). |
+| **Locatie in code**    | `HibernateAuditLogInterceptor.java` (verzamelen van wijzigingen in `onFlushDirty()`, opslag in `instantiateAuditLog()`); `AuditLog.java` (`serializedData`-attribuut)                                                                                                                                    |
+| **Verwerkte gegevens** | Oude en nieuwe veldwaarden van geaudite objecten. Afhankelijk van de auditconfiguratie kunnen dit domeinobjecten zijn zoals `Patient`, `Obs`, `Encounter`, `DrugOrder` en andere OpenMRS-records, inclusief mogelijk medische gegevens.                                                                  |
+| **Relevantie**         | De auditlog kan historische objectgegevens bevatten, waaronder eerdere veldwaarden en mogelijk verwijderde records. Ongeautoriseerde toegang tot deze gegevens kan inzicht geven in patiëntgerelateerde informatie die niet meer in de primaire database aanwezig is.                                    |
+| **Referenties**        | `HibernateAuditLogInterceptor.java` (`onFlushDirty()`, serialisatie van oude/nieuwe waarden; `instantiateAuditLog()`, opslag in `serializedData`); `AuditLog.java` (`Blob serializedData`); `AuditLogConstants.GP_STORE_LAST_STATE_OF_DELETED_ITEMS`                                                     |
 
 ### 1.3 Kroonjuweel 3 – Gebruikers- en sessiecontext
 
-| Attribuut | Detail |
-|-----------|--------|
-| **Beschrijving** | De koppeling tussen acties en de geauthenticeerde gebruiker (`Context.getAuthenticatedUser()`) vormt de basis voor accountabiliteit en forensisch onderzoek. |
-| **Locatie in code** | `HibernateAuditLogInterceptor.java` r.535; `DWRAuditLogService.java` r.64–128 |
-| **Verwerkte gegevens** | OpenMRS `User`-object (username, userId, rollen/privileges) |
-| **Relevantie** | Als de user-koppeling ontbreekt of kan worden gemanipuleerd (bijv. via de mutable setters in `AuditLog.java`), vervalt de bewijskracht van de audittrail volledig. |
-| **Referenties** | `AuditLog.java` setUser()/setAction()/setDateCreated(); `HibernateAuditLogInterceptor.java` r.381 (TODO-comment) |
+| Attribuut              | Detail                                                                                                                                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Beschrijving**       | Elke auditlog-entry wordt gekoppeld aan de op dat moment geauthenticeerde OpenMRS-gebruiker via `Context.getAuthenticatedUser()`. Deze koppeling ondersteunt accountabiliteit, herleidbaarheid en forensisch onderzoek naar uitgevoerde wijzigingen. |
+| **Locatie in code**    | `HibernateAuditLogInterceptor.java` (`instantiateAuditLog()`, aanroep van `Context.getAuthenticatedUser()`); `AuditLog.java` (`User user`-attribuut en mapping)                                                                                      |
+| **Verwerkte gegevens** | Referentie naar de geauthenticeerde OpenMRS-gebruiker (`User user`), gekoppeld aan de auditlog-entry.                                                                                                                                                |
+| **Relevantie**         | De gebruikerskoppeling vormt de basis voor het herleiden van wijzigingen naar individuele accounts. Indien auditlog-records achteraf gewijzigd kunnen worden, neemt de betrouwbaarheid en bewijskracht van de audittrail af.                         |
+| **Referenties**        | `HibernateAuditLogInterceptor.java` (`new AuditLog(... Context.getAuthenticatedUser() ...)`); `AuditLog.java` (`private User user`, `setUser()`, `setAction()`, `setDateCreated()`)                                                                  |
 
 ### 1.4 Kroonjuweel 4 – Privilege- en toegangsconfiguratie
 
-| Attribuut | Detail |
-|-----------|--------|
-| **Beschrijving** | De configuratie van privileges en de `auditingStrategy` bepalen wie toegang heeft tot de auditlog en welke objecten worden gemonitord. |
-| **Locatie in code** | `config.xml` r.47–54 (defaultValue NONE), r.88–111 (privileges) |
-| **Verwerkte gegevens** | Privilege-definities: `Get Audit Logs`, `Manage Audit Log`, `Get Items` etc. |
-| **Relevantie** | De standaardinstelling `NONE` betekent dat na installatie niets wordt gelogd. Onjuiste privilege-configuratie maakt de beveiligingslaag illusoir (zie bevinding 3: `PRIV_VIEW_AUDITLOG` niet geregistreerd in `config.xml`). |
-| **Referenties** | `config.xml` r.47–54; `AuditLogWebConstants.java` r.21; gap-analyse bevinding 3 |
+| Attribuut              | Detail                                                                                                                                                                                                                                                                                        |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Beschrijving**       | De configuratie van auditstrategieën en privileges bepaalt welke objecttypen worden geaudit en welke rechten beschikbaar zijn voor toegang tot auditlogfunctionaliteit.                                                                                                                       |
+| **Locatie in code**    | `config.xml` (global properties voor `auditingStrategy` en privilege-definities); `AuditLogWebConstants.java` (`PRIV_VIEW_AUDITLOG`)                                                                                                                                                          |
+| **Verwerkte gegevens** | Configuratiegegevens voor auditing (`ALL`, `ALL_EXCEPT`, `NONE`, `NONE_EXCEPT`) en privilege-definities zoals `Get Audit Logs`, `Manage Audit Log`, `Get Items`, `Get Audit Strategy` en `Check For Audited Items`.                                                                           |
+| **Relevantie**         | De standaardwaarde `NONE` betekent dat direct na installatie geen objecten worden geaudit totdat een auditstrategie wordt geconfigureerd. Daarnaast kan een inconsistentie tussen gedefinieerde en gebruikte privileges leiden tot onverwacht autorisatiegedrag rond auditlogfunctionaliteit. |
+| **Referenties**        | `config.xml` (global property `auditingStrategy`, defaultwaarde `NONE`; privilege-definities); `AuditLogWebConstants.java` (`PRIV_VIEW_AUDITLOG`); gap-analyse bevinding 3.                                                                                                                   |
 
 ---
 
 ## 2. CIA-beoordeling per kroonjuweel
 
-De CIA-beoordeling (Confidentialiteit, Integriteit, Beschikbaarheid) wordt gescoord op schaal 1–3:
+De CIA-beoordeling (Confidentialiteit, Integriteit, Beschikbaarheid) is herzien zodat deze aansluit op de geactualiseerde definitie van de kroonjuwelen (1.1 t/m 1.4). De score blijft op schaal 1–3.
 
-| Score | Betekenis |
-|-------|-----------|
-| 3 – Hoog | Ernstige, directe impact op zorgcontinuïteit, patiëntveiligheid of wettelijke compliance |
-| 2 – Middel | Significante impact, herstelbaar met inspanning |
-| 1 – Laag | Beperkte impact, geen directe gevaren |
-
-| Kroonjuweel | Confidentialiteit | Integriteit | Beschikbaarheid | Toelichting |
-|-------------|:-----------------:|:-----------:|:---------------:|-------------|
-| Audittrail | **3** | **3** | **2** | Uitlek legt alle historische mutaties bloot; manipulatie vernietigt bewijskracht |
-| Patiëntgegevens in serializedData | **3** | **2** | **1** | Bevat medische gegevens; AVG- en NEN 7510-schending bij uitlek |
-| Gebruikers-/sessiecontext | **2** | **3** | **1** | Manipulatie ondermijnt accountabiliteit en forensische waarde |
-| Privilege-/auditconfiguratie | **2** | **3** | **2** | Onjuiste config → logging uitgeschakeld → alle andere risico's worden onzichtbaar |
+| Kroonjuweel                       | Confidentialiteit | Integriteit | Beschikbaarheid | Toelichting                                                                                       |
+| --------------------------------- | :---------------: | :---------: | :-------------: | ------------------------------------------------------------------------------------------------- |
+| Audittrail (auditlog-tabel)       |       **3**       |    **3**    |      **2**      | Volledige reconstructie van systeemwijzigingen; manipulatie ondermijnt bewijskracht en compliance |
+| Patiëntgegevens in serializedData |       **3**       |    **2**    |      **1**      | Kan historische en gevoelige medische data bevatten; AVG/NEN 7510-impact bij uitlek               |
+| Gebruikers- en sessiecontext      |       **2**       |    **3**    |      **1**      | Accountabiliteit en forensische herleidbaarheid hangen af van correcte user-context               |
+| Privilege- en auditconfiguratie   |       **2**       |    **3**    |      **2**      | Foutieve configuratie kan auditing volledig uitschakelen of rechten verkeerd toekennen            |
 
 ---
 
 ## 3. Risicocriteria
 
-### 3.1 Scoreschaal
+### 3.1 Risicobereidheid en grenswaarden
 
-De risicoscore wordt berekend als: **Risicoscore = Kans × Impact**
+Binnen een NEN 7510-2:2024 + AVG gereguleerde zorgcontext geldt een **conservatieve risicohouding**, vooral rond patiëntdata en auditintegriteit.
 
-#### Kansschaal (Likelihood)
+Risico wordt berekend als: **Risico = Kans × Impact**, waarbij **Kans = Blootstelling × Waarschijnlijkheid**.
 
-| Score | Label | Beschrijving |
-|-------|-------|--------------|
-| 1 | Onwaarschijnlijk | Vereist fysieke toegang of geavanceerde aanval; geen bekende exploit |
-| 2 | Mogelijk | Vereist authenticatie of specifieke kennis van het systeem |
-| 3 | Waarschijnlijk | Eenvoudig uitvoerbaar door elke geauthenticeerde gebruiker |
-| 4 | Zeer waarschijnlijk | Geen authenticatie vereist; anoniem exploiteerbaar via netwerk |
-| 5 | Zeker | Actief misbruik aangetoond of standaardscan vindt de kwetsbaarheid automatisch |
+- **Blootstelling:** is de kwetsbaarheid aanwezig en bereikbaar vanuit de aanvalspositie?
+- **Waarschijnlijkheid:** hoe groot is de kans dat een kwaadwillende de kwetsbaarheid daadwerkelijk benut?
+- **Impact:** ernst van de gevolgen voor Confidentialiteit, Integriteit en/of Beschikbaarheid, inclusief financiële schade, schade aan patiëntveiligheid, reputatieschade en juridische gevolgen (AVG-boetes).
 
-#### Impactschaal (Impact)
+| Grenswaarde     | Risicoscore | Actie                                         | Termijn        |
+| --------------- | ----------- | --------------------------------------------- | -------------- |
+| Acceptatiegrens | ≤ 5         | Accepteren en registreren                     | Normale review |
+| Tolerantiegrens | 6–11        | Accepteren met mitigerende maatregel          | ≤ 3 maanden    |
+| Behandelgrens   | 12–17       | Mitigatie verplicht                           | ≤ 1 maand      |
+| Kritieke grens  | ≥ 18        | Direct ingrijpen / mogelijk systeemrestrictie | ≤ 72 uur       |
 
-| Score | Label | Beschrijving |
-|-------|-------|--------------|
-| 1 | Verwaarloosbaar | Cosmetisch probleem, geen data-impact |
-| 2 | Laag | Beperkte data-exposure, snel herstelbaar |
-| 3 | Middel | Data van één gebruiker/patiënt blootgesteld; audit-trail beperkt aangetast |
-| 4 | Hoog | Bulk-exposure van patiëntgegevens; audittrail gemanipuleerd; NEN 7510-schending |
-| 5 | Kritiek | Volledige audittrail vernietigd of gelekt; patiëntveiligheid direct in gevaar; meldplicht datalekken |
+**Aanvullende regels:**
 
-#### Risicoscorematrix
+1. Confidentialiteit van patiëntdata mag nooit Impact ≥ 4 hebben zonder directe mitigatie.
+2. Integriteit van audittrail heeft hoogste prioriteit (compliance-functie).
+3. Elke vorm van ongeauthenticeerde toegang tot audit- of patiëntdata wordt automatisch als kritisch beschouwd.
 
-| | **Impact 1** | **Impact 2** | **Impact 3** | **Impact 4** | **Impact 5** |
-|---|:---:|:---:|:---:|:---:|:---:|
-| **Kans 5** | 5 | 10 | 15 | 20 | **25** |
-| **Kans 4** | 4 | 8 | 12 | **16** | **20** |
-| **Kans 3** | 3 | 6 | 9 | **12** | **15** |
-| **Kans 2** | 2 | 4 | 6 | 8 | **10** |
-| **Kans 1** | 1 | 2 | 3 | 4 | 5 |
+---
 
-Kleurlegende: **Groen** (1–5) = Acceptabel · **Geel** (6–11) = Toezicht vereist · **Oranje** (12–17) = Behandelen · **Rood** (18–25) = Onmiddellijk handelen
+### 3.2 Initiële risicobeoordeling (op basis van gap-analyse, threat model en code-scan)
 
-### 3.2 Risicobereidheid en grenswaarden
+| ID   | Bevinding                                                           | Kans | Impact | Score | Classificatie |
+| ---- | ------------------------------------------------------------------- | :--: | :----: | :---: | ------------- |
+| R-01 | Export endpoint zonder autorisatiecontrole (missing access control) |  4   |   5    |  20   | 🔴 Kritiek    |
+| R-11 | SQL-injectie in `searchAuditLogsByUser()` (CWE-89)                  |  4   |   5    |  21   | 🔴 Kritiek    |
+| R-02 | `showForm()` zonder toegangscontrole                                |  4   |   4    |  16   | 🟠 Mitigeren  |
+| R-04 | Default auditingStrategy = NONE                                     |  4   |   4    |  16   | 🟠 Mitigeren  |
+| R-05 | READ-acties niet gelogd in auditmechanisme                          |  4   |   4    |  16   | 🟠 Mitigeren  |
+| R-06 | AuditLog object mutabel via setters                                 |  2   |   5    |  10   | 🟡 Toezicht   |
+| R-10 | Verouderde OpenMRS-versie (potentiële CVE-exposure)                 |  3   |   3    |   9   | 🟡 Toezicht   |
+| R-03 | Ontbrekende/incorrecte privilege-registratie                        |  3   |   3    |   9   | 🟡 Toezicht   |
+| R-08 | Geen IP-adres of sessie-ID in auditrecords                          |  3   |   3    |   9   | 🟡 Toezicht   |
+| R-09 | DB-level toegang omzeilt auditmechanisme                            |  2   |   4    |   8   | 🟡 Toezicht   |
+| R-07 | System/daemon acties loggen zonder user-context                     |  2   |   3    |   6   | 🟡 Toezicht   |
 
-De organisatie (zorginstelling die OpenMRS met auditlog-module inzet) opereert in een gereguleerde zorgomgeving onder NEN 7510-2:2024 en de AVG. Dit leidt tot een **lage risicobereidheid** voor risico's die patiëntgegevens of auditintegriteit raken.
+> **Toelichting R-11:** R-11 scoort hoger dan R-01 vanwege de combinatie van vertrouwelijkheid én integriteitsimpact. De SQL-injectie stelt een aanvaller niet alleen in staat de audittrail ongeautoriseerd uit te lezen (confidentialiteit, gelijk aan R-01), maar ook om log-entries te wijzigen of te wissen (integriteit). Daarmee is de audittrail als forensisch bewijsmiddel volledig onbetrouwbaar te maken, wat in een zorgcontext direct in strijd is met NEN 7510-2 A.8.15 en de AVG-verantwoordingsplicht (art. 5 lid 2). Kans = 4 op basis van: kwetsbaarheid aantoonbaar aanwezig in de codebase (blootstelling hoog) en SQL-injectie behoort tot OWASP Top 10 met breed beschikbare exploittechnieken (waarschijnlijkheid hoog).
 
-| Grenswaarde | Risicoscore | Actie | Tijdshorizon |
-|-------------|-------------|-------|--------------|
-| **Acceptatiegrens** | ≤ 5 | Accepteren; documenteren in risicoregister | Volgende reviewcyclus |
-| **Tolerantiegrens** | 6–11 | Accepteren mits beheersmaatregel gedocumenteerd | Binnen 3 maanden mitigeren |
-| **Behandelgrens** | 12–17 | Niet accepteren; mitigatie verplicht | Binnen 1 maand |
-| **Kritieke grens** | ≥ 18 | Onmiddellijk behandelen; evt. system shutdown | Direct / binnen 72 uur |
+---
 
-**Aanvullende risicobereidheidsregels (op basis van NEN 7510 en AVG):**
+### 3.3 Bow-tie analyse: SQL-injectie (R-11)
 
-1. **Confidentialiteit patiëntgegevens:** Geen enkel risico met Impact ≥ 4 op confidentialiteit wordt geaccepteerd, ongeacht de kans. Reden: AVG meldplicht datalekken en NEN 7510-2 A.8.3.
-2. **Integriteit audittrail:** Risico's die de integriteit van de audittrail aantasten worden nooit geaccepteerd boven score 5. Reden: de audittrail is zelf het compliance-instrument.
-3. **Unauthenticated access:** Elk risico waarbij anonieme netwerktoegang tot patiëntdata mogelijk is, wordt ongeacht de score als **kritiek** geclassificeerd (zie bevinding 5: exportAuditLogs IDOR).
+De bow-tie methode brengt zowel de oorzaken (dreigingen links) als de gevolgen (rechts) van het top event in kaart, samen met de barrières die kans en impact reduceren.
 
-### 3.3 Initiële risicobeoordeling op basis van gap-analyse
+**Top event:** SQL-injectie succesvol uitgevoerd via `searchAuditLogsByUser()`
 
-De onderstaande risico's zijn afgeleid uit de bevindingen in de gap-analyse. Ze dienen als input voor de risicomatrix die door de groepsgenoot wordt opgesteld.
+#### Oorzaken & preventieve barrières (kansreductie)
 
-| ID | Bevinding (bron) | Kans | Impact | Score | Classificatie |
-|----|-----------------|:----:|:------:|:-----:|---------------|
-| R-01 | Export-endpoint anoniem toegankelijk (IDOR) — `ViewAuditLogController.java` r.51–64 | 4 | 5 | **20** | 🔴 Kritiek |
-| R-02 | `showForm()` zonder toegangscontrole — `ViewAuditLogController.java` r.41–49 | 4 | 4 | **16** | 🔴 Kritiek |
-| R-03 | `PRIV_VIEW_AUDITLOG` niet geregistreerd in `config.xml` | 3 | 3 | **9** | 🟡 Toezicht |
-| R-04 | Standaard auditingstrategie = NONE (niets gelogd) — `config.xml` r.47–54 | 4 | 4 | **16** | 🔴 Kritiek |
-| R-05 | READ-acties niet gelogd — `AuditLog.java` Action enum | 4 | 4 | **16** | 🔴 Kritiek |
-| R-06 | AuditLog volledig muteerbaar (setters zonder bescherming) — `AuditLog.java` | 2 | 5 | **10** | 🟡 Toezicht |
-| R-07 | Daemon/unauthenticated operaties produceren `user=null` logs | 2 | 3 | **6** | 🟡 Toezicht |
-| R-08 | Geen IP-adres of sessie-ID in log-entries | 3 | 3 | **9** | 🟡 Toezicht |
-| R-09 | Directe DB-toegang omzeilt logging volledig (javadoc erkend) | 2 | 4 | **8** | 🟡 Toezicht |
-| R-10 | OpenMRS v1.8.3 — verouderd platform, mogelijke bekende CVE's | 3 | 3 | **9** | 🟡 Toezicht |
+| #   | Oorzaak (dreiging)                                                    | Preventieve barrière                                                               |
+| --- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | Gebruikersinvoer zonder validatie direct in SQL-string geconcateneerd | Input-validatie: saniteer alle invoer vóór verwerking                              |
+| 2   | Gebruik van `createSQLQuery()` met dynamische string-opbouw           | Vervang door Hibernate parameter binding (`setParameter()`) of HQL                 |
+| 3   | Geen ORM-laag als beschermende abstractie voor deze query             | Gebruik een query builder die SQL automatisch escapet                              |
+| 4   | Te brede databaserechten voor de applicatiegebruiker                  | Verbind met de database via een least-privilege account (geen DROP/DELETE-rechten) |
+
+#### Gevolgen & mitigerende barrières (impactreductie)
+
+| #   | Gevolg                                          | Mitigerende barrière                                                    | CIA-dimensie           |
+| --- | ----------------------------------------------- | ----------------------------------------------------------------------- | ---------------------- |
+| 1   | Volledige audittrail ongeautoriseerd uitgelezen | Versleuteling van `serializedData` at rest (TDE/CLE)                    | Confidentialiteit      |
+| 2   | Auditlog-entries gewijzigd of gewist            | Audit- en loginlogging op databaseniveau inschakelen (MySQL binary log) | Integriteit            |
+| 3   | Forensisch bewijs vernietigd na incident        | Versleutelde backup & restore procedure met off-site kopie              | Integriteit            |
+| 4   | AVG-meldplicht getriggerd (art. 33)             | Incident response plan activeren; DPA-melding binnen 72 uur             | Juridisch/Operationeel |
+| 5   | Reputatieschade zorginstelling                  | Transparante communicatie richting patiënten en toezichthouder          | Operationeel           |
 
 ---
 
 ## 4. Referenties
 
-| Bestand | Relevantie |
-|---------|-----------|
-| `AuditLog.java` | Definitie kroonjuweel 1; mutable setters (R-06) |
-| `ViewAuditLogController.java` r.41–64 | R-01 (IDOR export), R-02 (showForm zonder auth) |
-| `HibernateAuditLogInterceptor.java` r.381–471, r.535 | Kroonjuweel 2 en 3; R-07 (daemon/null user) |
-| `config.xml` r.47–54, r.88–111 | R-03 (ontbrekende privilege), R-04 (NONE default) |
-| `AuditLog.java` r.64–66 (Action enum) | R-05 (geen READ) |
-| `AuditLogWebConstants.java` r.21 | R-03 (PRIV_VIEW_AUDITLOG) |
-| `liquibase.xml` | DB-schema definitie |
-| Gap-analyse (gap-analyse.md) | Alle bevindingen 1–15 |
-| NEN 7510-2:2024+A1:2026 | A.8.3, A.8.5, A.8.15 |
-| AVG art. 33 | Meldplicht datalekken |
+| Bestand                             | Relevantie                                                  |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `AuditLog.java`                     | Definitie auditlog-entiteit en mutabele structuur           |
+| `AuditLog.hbm.xml`                  | ORM mapping van audittrail (DB persistentie)                |
+| `HibernateAuditLogInterceptor.java` | Generatie auditrecords + user-context + serialisatie        |
+| `ViewAuditLogController.java`       | Export- en view endpoints (R-01, R-02)                      |
+| `AuditLogServiceImpl.java`          | SQL-injectie kwetsbaarheid `searchAuditLogsByUser()` (R-11) |
+| `config.xml`                        | Auditstrategie + privilegeconfiguratie (R-03, R-04)         |
+| `AuditLogWebConstants.java`         | Privilege-definities                                        |
+| `liquibase.xml`                     | Database schema auditlog tabel                              |
+| Gap-analyse document                | Bron voor alle R-01 t/m R-10, R-11 bevindingen              |
+| Threat model (B18)                  | Identificatie R-11; SQL-injectie als aanvalsvector          |
+| NEN 7510-2:2024+A1:2026             | Normatieve basis (A.8 logging & toegangscontrole)           |
+| AVG (art. 33)                       | Meldplicht datalekken                                       |
