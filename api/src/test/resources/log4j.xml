@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+
+<!--
+  TC-07 / SEC-11 — SQL Injection logging configuratie
+  =====================================================
+  Dit bestand configureert Log4j voor de test-run zodat:
+
+  1. org.hibernate.SQL (DEBUG)
+     Print elke SQL query die Hibernate uitvoert.
+     Zelfde als show_sql=true in hibernate.cfg.xml, maar nu via het
+     normale logging-systeem — werkt ook als Surefire stdout kapot is.
+
+  2. org.hibernate.type (TRACE)
+     Print de WAARDEN van alle parameters die Hibernate bindt.
+     Dit is het cruciale bewijs voor FASE 3 (fix verify):
+       - Bij de FIXED method zie je:  binding '1' to parameter: 1
+       - Een injection-string zou hier als letterlijke waarde verschijnen,
+         nooit als SQL-syntax.
+
+  3. org.openmrs.module.auditlog (DEBUG)
+     Normale module-logging.
+
+  Samen leveren loggers 1 + 2 de screenshots op voor het pentestrapport:
+    Screenshot A (exploit): de raw SQL met de injected string erin
+    Screenshot B (fix):     de parameterized query + parameter binding
+-->
+
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+
+    <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
+        <param name="Target" value="System.out"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <!-- timestamp | level | logger-naam | bericht -->
+            <param name="ConversionPattern" value="%d{HH:mm:ss.SSS} [%-5p] %c{1} — %m%n"/>
+        </layout>
+    </appender>
+
+    <!-- Hibernate SQL queries (equivalent aan show_sql=true, maar via Log4j) -->
+    <logger name="org.hibernate.SQL" additivity="false">
+        <level value="DEBUG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!--
+      BELANGRIJK: dit logt de gebonden parameter-WAARDEN.
+      Hiermee zie je bij FASE 3 exact:
+        binding '1' to parameter: 1
+      En bewijst daarmee dat de payload NOOIT als SQL wordt geïnterpreteerd.
+    -->
+    <logger name="org.hibernate.type" additivity="false">
+        <level value="TRACE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- OpenMRS auditlog module zelf -->
+    <logger name="org.openmrs.module.auditlog" additivity="false">
+        <level value="DEBUG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Alles wat niet expliciet geconfigureerd is: alleen WARN en hoger -->
+    <root>
+        <priority value="WARN"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</log4j:configuration>
