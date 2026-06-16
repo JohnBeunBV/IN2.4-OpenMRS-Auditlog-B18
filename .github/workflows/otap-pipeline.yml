@@ -41,7 +41,7 @@ jobs:
   deploy-dev:
     name: Deploy → DEV
     needs: build
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     environment:
       name: development
@@ -75,7 +75,7 @@ jobs:
   deploy-test:
     name: Deploy → TEST
     needs: deploy-dev
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/test'
     runs-on: ubuntu-latest
     environment:
       name: test
