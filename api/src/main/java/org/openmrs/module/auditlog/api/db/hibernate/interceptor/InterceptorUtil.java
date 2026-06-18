@@ -33,7 +33,7 @@ import org.openmrs.module.auditlog.util.AuditLogUtil;
 /**
  * Contains utility methods used by the interceptor
  */
-final class InterceptorUtil {
+final public class InterceptorUtil {
 	
 	private static final Log log = LogFactory.getLog(InterceptorUtil.class);
 	
@@ -111,7 +111,7 @@ final class InterceptorUtil {
 		return AuditLogUtil.serializeToJson(propertyNameValueMap);
 	}
 	
-	static SessionFactory getSessionFactory() {
+	public static SessionFactory getSessionFactory() {
 		return Context.getRegisteredComponents(SessionFactory.class).get(0);
 	}
 	
