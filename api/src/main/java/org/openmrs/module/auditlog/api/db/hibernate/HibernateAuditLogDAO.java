@@ -32,6 +32,7 @@ import org.openmrs.module.auditlog.AuditLog;
 import org.openmrs.module.auditlog.AuditLog.Action;
 import org.openmrs.module.auditlog.api.db.AuditLogDAO;
 import org.openmrs.module.auditlog.util.AuditLogConstants;
+import org.openmrs.module.auditlog.util.AuditLogSerializer;
 import org.openmrs.module.auditlog.util.AuditLogUtil;
 
 public class HibernateAuditLogDAO implements AuditLogDAO, GlobalPropertyListener {
@@ -61,7 +62,7 @@ public class HibernateAuditLogDAO implements AuditLogDAO, GlobalPropertyListener
 
 		Criteria criteria = sessionFactory.getCurrentSession().createCriteria(AuditLog.class);
 		if (id != null) {
-			criteria.add(Restrictions.eq("identifier", AuditLogUtil.serializeObject(id)));
+			criteria.add(Restrictions.eq("identifier", AuditLogSerializer.serializeObject(id)));
 		}
 
 		if (types != null) {
