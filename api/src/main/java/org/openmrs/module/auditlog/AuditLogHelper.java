@@ -429,7 +429,7 @@ public class AuditLogHelper implements GlobalPropertyListener {
 	 * {@link #getAuditingStrategy()} by setting the GP to the relevant value.
 	 */
 	@SuppressWarnings("unchecked")
-	private AuditStrategy getAuditStrategyFromString(String value) throws Exception {
+	AuditStrategy getAuditStrategyFromString(String value) throws Exception {
 
 		if (StringUtils.isBlank(value)) {
 			return AuditStrategy.ALL;
