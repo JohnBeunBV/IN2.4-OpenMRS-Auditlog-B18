@@ -152,8 +152,7 @@ public class HibernateAuditLogInterceptor extends EmptyInterceptor {
                         && !OpenmrsUtil.nullSafeEquals(currentValue, previousValue)) {
 
                     // REFACTORING: Extract Method – string comparison logic
-                    if (StringType.class.getName().equals(types[i].getClass().getName())
-                            || TextType.class.getName().equals(types[i].getClass().getName())) {
+                    if (types[i] instanceof StringType || types[i] instanceof TextType) {
                         if (isBlankOrCaseInsensitiveEqual(previousValue, currentValue)) {
                             continue;
                         }

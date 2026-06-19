@@ -19,6 +19,7 @@ import org.junit.Test;
 import org.openmrs.module.auditlog.strategy.AllAuditStrategy;
 import org.openmrs.module.auditlog.strategy.AllExceptAuditStrategy;
 import org.openmrs.module.auditlog.strategy.AuditStrategy;
+import org.openmrs.module.auditlog.strategy.BaseAuditStrategy;
 import org.openmrs.module.auditlog.strategy.NoneAuditStrategy;
 import org.openmrs.module.auditlog.strategy.NoneExceptAuditStrategy;
 
@@ -126,5 +127,16 @@ public class AuditLogHelperGetAuditStrategyFromStringTest {
             throws Exception {
         assertEquals(AuditStrategy.ALL_EXCEPT,
                 helper.getAuditStrategyFromString(AllExceptAuditStrategy.class.getName()));
+    }
+
+    public class CustomTestAuditStrategy extends BaseAuditStrategy {
+
+        /**
+         * @see org.openmrs.module.auditlog.strategy.AuditStrategy#isAudited(Class)
+         */
+        @Override
+        public boolean isAudited(Class<?> clazz) {
+            return false;
+        }
     }
 }
