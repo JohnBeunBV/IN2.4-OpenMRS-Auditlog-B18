@@ -42,29 +42,58 @@ public class AuditLogListItem {
 	 * Convenience constructor that created an {@link AuditLogListItem} from an {@link AuditLog}
 	 */
 	public AuditLogListItem(AuditLog auditLog) {
-		auditLogId = auditLog.getAuditLogId();
-		classname = auditLog.getType().getName();
-		simpleClassname = auditLog.getType().getSimpleName();
-		//If it is a nested class, use the simple name of the nested class
-		if (simpleClassname.indexOf("$") > -1) {
-			simpleClassname = simpleClassname.substring(simpleClassname.indexOf("$") + 1);
+
+		if (auditLog == null) {
+			return;
 		}
+
+		auditLogId = auditLog.getAuditLogId();
+
+		if (auditLog.getType() != null) {
+
+			classname = auditLog.getType().getName();
+
+			simpleClassname = auditLog.getType().getSimpleName();
+
+			if (simpleClassname.indexOf("$") > -1) {
+				simpleClassname =
+						simpleClassname.substring(simpleClassname.indexOf("$") + 1);
+			}
+		}
+
 		identifier = auditLog.getIdentifier();
-		action = auditLog.getAction().toString();
+
+		if (auditLog.getAction() != null) {
+			action = auditLog.getAction().toString();
+		}
+
 		if (auditLog.getUser() != null) {
-			if (auditLog.getUser().getUuid().equals(DAEMON_USER_UUID)) {
-				userDetails = Context.getMessageSourceService().getMessage(AuditLogConstants.MODULE_ID + ".systemChange");
+
+			if (auditLog.getUser().getUuid() != null
+					&& auditLog.getUser().getUuid().equals(DAEMON_USER_UUID)) {
+
+				userDetails =
+						Context.getMessageSourceService().getMessage(
+								AuditLogConstants.MODULE_ID + ".systemChange");
+
 			} else {
+
 				if (auditLog.getUser().getPersonName() != null) {
-					userDetails = auditLog.getUser().getPersonName().getFullName();
+					userDetails =
+							auditLog.getUser().getPersonName().getFullName();
 				}
+
 				if (StringUtils.isNotBlank(auditLog.getUser().getUsername())) {
-					userDetails = userDetails + "[" + auditLog.getUser().getUsername() + "]";
+					userDetails =
+							userDetails + "[" + auditLog.getUser().getUsername() + "]";
 				}
 			}
 		}
-		
-		dateCreatedString = Context.getDateFormat().format(auditLog.getDateCreated());
+
+		if (auditLog.getDateCreated() != null) {
+			dateCreatedString =
+					Context.getDateFormat().format(auditLog.getDateCreated());
+		}
 	}
 	
 	/**
