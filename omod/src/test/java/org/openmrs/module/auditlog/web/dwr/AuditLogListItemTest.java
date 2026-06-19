@@ -16,11 +16,8 @@ public class AuditLogListItemTest {
         AuditLog auditLog = new AuditLog();
 
         auditLog.setAuditLogId(1);
-
         auditLog.setDateCreated(new Date());
-
         auditLog.setAction(AuditLog.Action.CREATED);
-
         auditLog.setType(String.class);
 
         AuditLogListItem item = null;
@@ -32,13 +29,27 @@ public class AuditLogListItemTest {
             // ignore context-related exceptions
         }
 
-        assertNotNull(auditLog);
+        assertNotNull(item);
     }
 
     @Test
     public void shouldTestSettersAndGetters() {
 
-        AuditLogListItem item = new AuditLogListItem(new AuditLog());
+        AuditLog auditLog = new AuditLog();
+
+        auditLog.setAuditLogId(1);
+        auditLog.setDateCreated(new Date());
+        auditLog.setAction(AuditLog.Action.CREATED);
+        auditLog.setType(String.class);
+
+        AuditLogListItem item = null;
+
+        try {
+            item = new AuditLogListItem(auditLog);
+        }
+        catch (Exception e) {
+            item = new AuditLogListItem(new AuditLog());
+        }
 
         item.setAuditLogId(10);
         item.setClassname("TestClass");
