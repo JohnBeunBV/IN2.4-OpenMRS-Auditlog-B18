@@ -21,12 +21,12 @@
 		<url>http://openmrs.org</url>
 	</organization>
 
-    <scm>
-        <connection>scm:git:https://github.com/openmrs/openmrs-module-auditlog</connection>
-        <developerConnection>scm:git:https://github.com/openmrs/openmrs-module-auditlog</developerConnection>
-        <url>https://github.com/openmrs/openmrs-module-auditlog</url>
-        <tag>HEAD</tag>
-    </scm>
+	<scm>
+		<connection>scm:git:https://github.com/openmrs/openmrs-module-auditlog</connection>
+		<developerConnection>scm:git:https://github.com/openmrs/openmrs-module-auditlog</developerConnection>
+		<url>https://github.com/openmrs/openmrs-module-auditlog</url>
+		<tag>HEAD</tag>
+	</scm>
 
 	<modules>
 		<module>api</module>
@@ -36,12 +36,18 @@
 	<properties>
 		<openMRSVersion>1.8.3</openMRSVersion>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jsonAssertVersion>1.5.0</jsonAssertVersion>
+		<jsonAssertVersion>1.5.0</jsonAssertVersion>
 		<sonar.organization>johnbeunbv</sonar.organization>
+		<sonar.coverage.jacoco.xmlReportPaths>
+			api/target/site/jacoco/jacoco.xml,
+			omod/target/site/jacoco/jacoco.xml
+		</sonar.coverage.jacoco.xmlReportPaths>
 	</properties>
 
 	<dependencyManagement>
-		<dependencies><!-- Begin OpenMRS core -->
+		<dependencies>
+
+			<!-- Begin OpenMRS core -->
 			
 			<dependency>
 				<groupId>org.openmrs.api</groupId>
@@ -85,12 +91,12 @@
 						
 			<!-- End OpenMRS core -->
 
-            <dependency>
-                <groupId>org.skyscreamer</groupId>
-                <artifactId>jsonassert</artifactId>
-                <version>${jsonAssertVersion}</version>
-                <scope>test</scope>
-            </dependency>
+			<dependency>
+				<groupId>org.skyscreamer</groupId>
+				<artifactId>jsonassert</artifactId>
+				<version>${jsonAssertVersion}</version>
+				<scope>test</scope>
+			</dependency>
 
 		</dependencies>
 	</dependencyManagement>
@@ -101,6 +107,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
+					<version>3.11.0</version>
 					<configuration>
 						<target>1.7</target>
 						<source>1.7</source>
@@ -118,30 +125,29 @@
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.11.0</version>
+					<artifactId>maven-release-plugin</artifactId>
+					<version>2.5</version>
+					<configuration>
+						<autoVersionSubmodules>true</autoVersionSubmodules>
+						<tagNameFormat>@{project.version}</tagNameFormat>
+					</configuration>
 				</plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-release-plugin</artifactId>
-                    <version>2.5</version>
-                    <configuration>
-                        <autoVersionSubmodules>true</autoVersionSubmodules>
-                        <tagNameFormat>@{project.version}</tagNameFormat>
-                    </configuration>
-                </plugin>
 				<plugin>
 					<groupId>org.jacoco</groupId>
 					<artifactId>jacoco-maven-plugin</artifactId>
 					<version>0.8.11</version>
 					<executions>
 						<execution>
-							<goals><goal>prepare-agent</goal></goals>
+							<goals>
+								<goal>prepare-agent</goal>
+							</goals>
 						</execution>
 						<execution>
 							<id>report</id>
 							<phase>test</phase>
-							<goals><goal>report</goal></goals>
+							<goals>
+								<goal>report</goal>
+							</goals>
 						</execution>
 					</executions>
 				</plugin>
@@ -174,11 +180,11 @@
 			<name>Modules</name>
 			<url>https://mavenrepo.openmrs.org/modules</url>
 		</repository>
-        <snapshotRepository>
-            <id>openmrs-repo-snapshots</id>
-            <name>OpenMRS Snapshots</name>
-            <url>https://mavenrepo.openmrs.org/snapshots</url>
-        </snapshotRepository>
+		<snapshotRepository>
+			<id>openmrs-repo-snapshots</id>
+			<name>OpenMRS Snapshots</name>
+			<url>https://mavenrepo.openmrs.org/snapshots</url>
+		</snapshotRepository>
 	</distributionManagement>
 
 </project>
