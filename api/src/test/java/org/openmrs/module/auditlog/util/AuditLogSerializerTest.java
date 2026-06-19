@@ -126,6 +126,14 @@ public class AuditLogSerializerTest {
         assertEquals("[]", AuditLogSerializer.serializeToJson(new ArrayList<String>()));
     }
 
+    @Test
+    public void serializeToJson_shouldEscapeSpecialCharactersInStrings() throws Exception {
+        List<String> data = Arrays.asList("quote\"here", "tab\there", "newline\nhere");
+
+        String result = AuditLogSerializer.serializeToJson(data);
+
+        assertEquals("[\"quote\\\"here\",\"tab\\there\",\"newline\\nhere\"]", result);
+    }
     // -----------------------------------------------------------------------
     // serializeCollectionItems()
     // -----------------------------------------------------------------------
