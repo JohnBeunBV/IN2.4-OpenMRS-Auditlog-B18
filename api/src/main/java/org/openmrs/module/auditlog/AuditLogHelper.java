@@ -16,7 +16,10 @@ package org.openmrs.module.auditlog;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
@@ -58,6 +61,24 @@ public class AuditLogHelper implements GlobalPropertyListener {
 	private static AuditStrategy auditingStrategyCache;
 	
 	private static Set<Class<?>> implicitlyAuditedTypeCache;
+
+	private static final Map<String, AuditStrategy> SHORT_NAME_STRATEGIES;
+	static {
+		SHORT_NAME_STRATEGIES = new LinkedHashMap<String, AuditStrategy>();
+		SHORT_NAME_STRATEGIES.put(AuditStrategy.SHORT_NAME_NONE, AuditStrategy.NONE);
+		SHORT_NAME_STRATEGIES.put(AuditStrategy.SHORT_NAME_NONE_EXCEPT, AuditStrategy.NONE_EXCEPT);
+		SHORT_NAME_STRATEGIES.put(AuditStrategy.SHORT_NAME_ALL, AuditStrategy.ALL);
+		SHORT_NAME_STRATEGIES.put(AuditStrategy.SHORT_NAME_ALL_EXCEPT, AuditStrategy.ALL_EXCEPT);
+	}
+	
+	private static final Map<Class<?>, AuditStrategy> KNOWN_STRATEGY_CLASSES;
+	static {
+		KNOWN_STRATEGY_CLASSES = new LinkedHashMap<Class<?>, AuditStrategy>();
+		KNOWN_STRATEGY_CLASSES.put(NoneAuditStrategy.class, AuditStrategy.NONE);
+		KNOWN_STRATEGY_CLASSES.put(NoneExceptAuditStrategy.class, AuditStrategy.NONE_EXCEPT);
+		KNOWN_STRATEGY_CLASSES.put(AllAuditStrategy.class, AuditStrategy.ALL);
+		KNOWN_STRATEGY_CLASSES.put(AllExceptAuditStrategy.class, AuditStrategy.ALL_EXCEPT);
+	}
 	
 	public AuditStrategy getAuditingStrategy() {
 		if (auditingStrategyCache == null) {
@@ -360,32 +381,31 @@ public class AuditLogHelper implements GlobalPropertyListener {
 		return getImplicitlyAuditedClasses().contains(clazz);
 	}
 	
+	@SuppressWarnings("unchecked")
 	private AuditStrategy getAuditStrategyFromString(String value) throws Exception {
-		AuditStrategy strategy;
-		//We should allow short values like all, all_except, none, none_except
-		if (AuditStrategy.SHORT_NAME_NONE.equalsIgnoreCase(value)) {
-			strategy = AuditStrategy.NONE;
-		} else if (AuditStrategy.SHORT_NAME_NONE_EXCEPT.equalsIgnoreCase(value)) {
-			strategy = AuditStrategy.NONE_EXCEPT;
-		} else if (AuditStrategy.SHORT_NAME_ALL.equalsIgnoreCase(value)) {
-			strategy = AuditStrategy.ALL;
-		} else if (AuditStrategy.SHORT_NAME_ALL_EXCEPT.equalsIgnoreCase(value)) {
-			strategy = AuditStrategy.ALL_EXCEPT;
-		} else {
-			Class<AuditStrategy> clazz = (Class<AuditStrategy>) Context.loadClass(value);
-			if (NoneAuditStrategy.class.equals(clazz)) {
-				strategy = AuditStrategy.NONE;
-			} else if (NoneExceptAuditStrategy.class.equals(clazz)) {
-				strategy = AuditStrategy.NONE_EXCEPT;
-			} else if (AllAuditStrategy.class.equals(clazz)) {
-				strategy = AuditStrategy.ALL;
-			} else if (AllExceptAuditStrategy.class.equals(clazz)) {
-				strategy = AuditStrategy.ALL_EXCEPT;
-			} else {
-				strategy = clazz.newInstance();
-			}
+
+		if (StringUtils.isBlank(value)) {
+			return AuditStrategy.ALL;
 		}
-		
-		return strategy;
+
+		// Short-name lookup
+		AuditStrategy strategy =
+				SHORT_NAME_STRATEGIES.get(value.toUpperCase(Locale.ENGLISH));
+
+		if (strategy != null) {
+			return strategy;
+		}
+
+		// Fully qualified class lookup
+		Class<AuditStrategy> clazz =
+				(Class<AuditStrategy>) Context.loadClass(value);
+
+		strategy = KNOWN_STRATEGY_CLASSES.get(clazz);
+
+		if (strategy != null) {
+			return strategy;
+		}
+
+		return clazz.newInstance();
 	}
 }
