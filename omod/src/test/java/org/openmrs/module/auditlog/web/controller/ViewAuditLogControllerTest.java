@@ -45,19 +45,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * Unit tests for {@link ViewAuditLogController}.
+ * Unit tests voor {@link ViewAuditLogController}.
  *
- * The controller relies entirely on the static OpenMRS {@link Context}
- * facade for authentication, privilege checks and service lookup, so it
- * cannot run in a real Spring/Hibernate context without bootstrapping the
- * whole application. Mockito's mockStatic is used instead so each branch
- * (authenticated/unauthenticated, manager/non-manager, with/without a
- * userId filter, invalid userId) can be exercised deterministically.
- *
- * Both showForm() (basic view, SEC-02) and exportAuditLogs() (CSV export
- * with per-user filtering, SEC-01) are covered with happy and unhappy
- * paths, matching the pentest evidence steps documented in the controller
- * itself.
+ * De controller is volledig afhankelijk van de statische OpenMRS
+ * {@link Context}
+ * facade voor authenticatie, privilege-controles en service-lookup, en kan
+ * daarom niet draaien in een echte Spring/Hibernate context. Mockito's
+ * mockStatic wordt gebruikt via anonieme klassen (Java 1.7-compatibel,
+ * geen lambdas of method references).
  */
 public class ViewAuditLogControllerTest {
 
@@ -72,7 +67,11 @@ public class ViewAuditLogControllerTest {
         controller = new ViewAuditLogController();
         mockedContext = Mockito.mockStatic(Context.class);
         auditLogService = Mockito.mock(AuditLogService.class);
-        mockedContext.when(() -> Context.getService(AuditLogService.class)).thenReturn(auditLogService);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.getService(AuditLogService.class);
+            }
+        }).thenReturn(auditLogService);
     }
 
     @After
@@ -86,9 +85,12 @@ public class ViewAuditLogControllerTest {
 
     @Test
     public void showForm_shouldRequirePrivilegeBeforeFetchingLogs() {
-        mockedContext.when(() -> Context.requirePrivilege(AuditLogConstants.PRIV_GET_AUDITLOGS))
-                .thenThrow(new ContextAuthenticationException(
-                        "Privilege required: " + AuditLogConstants.PRIV_GET_AUDITLOGS));
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.requirePrivilege(AuditLogConstants.PRIV_GET_AUDITLOGS);
+            }
+        }).thenThrow(new ContextAuthenticationException(
+                "Privilege required: " + AuditLogConstants.PRIV_GET_AUDITLOGS));
 
         ModelMap model = new ModelMap();
 
@@ -116,7 +118,11 @@ public class ViewAuditLogControllerTest {
         ModelMap model = new ModelMap();
         controller.showForm(model);
 
-        mockedContext.verify(() -> Context.requirePrivilege(AuditLogConstants.PRIV_GET_AUDITLOGS));
+        mockedContext.verify(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.requirePrivilege(AuditLogConstants.PRIV_GET_AUDITLOGS);
+            }
+        });
         assertEquals(logs, model.get("auditLogs"));
     }
 
@@ -126,7 +132,11 @@ public class ViewAuditLogControllerTest {
 
     @Test
     public void exportAuditLogs_shouldReturn401WhenNotAuthenticated() throws Exception {
-        mockedContext.when(Context::isAuthenticated).thenReturn(false);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.isAuthenticated();
+            }
+        }).thenReturn(false);
 
         HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
@@ -134,15 +144,26 @@ public class ViewAuditLogControllerTest {
         controller.exportAuditLogs(request, response);
 
         Mockito.verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
-        mockedContext.verify(() -> Context.requirePrivilege(Mockito.anyString()), Mockito.never());
+        mockedContext.verify(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.requirePrivilege(Mockito.anyString());
+            }
+        }, Mockito.never());
         Mockito.verifyNoInteractions(auditLogService);
     }
 
     @Test
     public void exportAuditLogs_shouldPropagateExceptionWhenAuthenticatedButLacksPrivilege() throws Exception {
-        mockedContext.when(Context::isAuthenticated).thenReturn(true);
-        mockedContext.when(() -> Context.requirePrivilege(AuditLogConstants.PRIV_GET_AUDITLOGS))
-                .thenThrow(new ContextAuthenticationException("Privilege required"));
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.isAuthenticated();
+            }
+        }).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.requirePrivilege(AuditLogConstants.PRIV_GET_AUDITLOGS);
+            }
+        }).thenThrow(new ContextAuthenticationException("Privilege required"));
 
         HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
@@ -151,7 +172,7 @@ public class ViewAuditLogControllerTest {
             controller.exportAuditLogs(request, response);
             org.junit.Assert.fail("Verwacht ContextAuthenticationException wanneer privilege ontbreekt");
         } catch (ContextAuthenticationException expected) {
-            // SEC-01 stap 2: sessie aanwezig maar geen privilege -> blokkade vóór elke
+            // SEC-01 stap 2: sessie aanwezig maar geen privilege -> blokkade voor
             // data-toegang
         }
 
@@ -164,8 +185,16 @@ public class ViewAuditLogControllerTest {
 
     @Test
     public void exportAuditLogs_shouldFilterByRequestedUserIdWhenCallerIsManager() throws Exception {
-        mockedContext.when(Context::isAuthenticated).thenReturn(true);
-        mockedContext.when(() -> Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG)).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.isAuthenticated();
+            }
+        }).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG);
+            }
+        }).thenReturn(true);
 
         User targetUser = new User();
         targetUser.setUserId(1);
@@ -206,8 +235,16 @@ public class ViewAuditLogControllerTest {
 
     @Test
     public void exportAuditLogs_shouldReturnAllLogsWhenManagerOmitsUserId() throws Exception {
-        mockedContext.when(Context::isAuthenticated).thenReturn(true);
-        mockedContext.when(() -> Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG)).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.isAuthenticated();
+            }
+        }).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG);
+            }
+        }).thenReturn(true);
 
         User user1 = new User();
         user1.setUserId(1);
@@ -247,8 +284,16 @@ public class ViewAuditLogControllerTest {
 
     @Test
     public void exportAuditLogs_shouldReturnEmptyCsvForNonNumericUserId() throws Exception {
-        mockedContext.when(Context::isAuthenticated).thenReturn(true);
-        mockedContext.when(() -> Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG)).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.isAuthenticated();
+            }
+        }).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG);
+            }
+        }).thenReturn(true);
         Mockito.when(auditLogService.getAuditLogs(
                 isNull(List.class), isNull(List.class), isNull(Date.class), isNull(Date.class),
                 eq(false), isNull(Integer.class), isNull(Integer.class))).thenReturn(new ArrayList<AuditLog>());
@@ -269,17 +314,29 @@ public class ViewAuditLogControllerTest {
     }
 
     // =========================================================================
-    // exportAuditLogs() — non-manager branch: always restricted to own logs
+    // exportAuditLogs() — non-manager branch: altijd beperkt tot eigen logs
     // =========================================================================
 
     @Test
     public void exportAuditLogs_shouldRestrictNonManagerToOwnLogsEvenWithUserIdParam() throws Exception {
-        mockedContext.when(Context::isAuthenticated).thenReturn(true);
-        mockedContext.when(() -> Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG)).thenReturn(false);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.isAuthenticated();
+            }
+        }).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG);
+            }
+        }).thenReturn(false);
 
-        User self = new User();
+        final User self = new User();
         self.setUserId(5);
-        mockedContext.when(Context::getAuthenticatedUser).thenReturn(self);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.getAuthenticatedUser();
+            }
+        }).thenReturn(self);
 
         User otherUser = new User();
         otherUser.setUserId(99);
@@ -303,7 +360,6 @@ public class ViewAuditLogControllerTest {
                 eq(false), isNull(Integer.class), isNull(Integer.class))).thenReturn(allLogs);
 
         HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
-        // Probeert via de parameter andermans logs te zien (CWE-639 IDOR-poging)
         Mockito.when(request.getParameter("userId")).thenReturn("99");
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
         StringWriter csvOutput = new StringWriter();
@@ -320,9 +376,21 @@ public class ViewAuditLogControllerTest {
 
     @Test
     public void exportAuditLogs_shouldReturnEmptyCsvForNonManagerWithNoAuthenticatedUser() throws Exception {
-        mockedContext.when(Context::isAuthenticated).thenReturn(true);
-        mockedContext.when(() -> Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG)).thenReturn(false);
-        mockedContext.when(Context::getAuthenticatedUser).thenReturn(null);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.isAuthenticated();
+            }
+        }).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG);
+            }
+        }).thenReturn(false);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.getAuthenticatedUser();
+            }
+        }).thenReturn(null);
         Mockito.when(auditLogService.getAuditLogs(
                 isNull(List.class), isNull(List.class), isNull(Date.class), isNull(Date.class),
                 eq(false), isNull(Integer.class), isNull(Integer.class))).thenReturn(new ArrayList<AuditLog>());
@@ -345,8 +413,16 @@ public class ViewAuditLogControllerTest {
 
     @Test
     public void exportAuditLogs_shouldSetCsvContentTypeAndAttachmentHeader() throws Exception {
-        mockedContext.when(Context::isAuthenticated).thenReturn(true);
-        mockedContext.when(() -> Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG)).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.isAuthenticated();
+            }
+        }).thenReturn(true);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.hasPrivilege(AuditLogConstants.PRIV_MANAGE_AUDITLOG);
+            }
+        }).thenReturn(true);
         Mockito.when(auditLogService.getAuditLogs(
                 isNull(List.class), isNull(List.class), isNull(Date.class), isNull(Date.class),
                 eq(false), isNull(Integer.class), isNull(Integer.class))).thenReturn(new ArrayList<AuditLog>());

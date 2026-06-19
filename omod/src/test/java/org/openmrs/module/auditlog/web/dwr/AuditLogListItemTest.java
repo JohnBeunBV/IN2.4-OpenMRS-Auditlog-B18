@@ -34,19 +34,17 @@ import org.openmrs.module.auditlog.AuditLog;
 import org.openmrs.module.auditlog.AuditLog.Action;
 
 /**
- * Unit tests for {@link AuditLogListItem}.
+ * Unit tests voor {@link AuditLogListItem}.
  *
- * AuditLogListItem.<init> drives most of its own branch logic (type-name
- * resolution, daemon-vs-regular user formatting, action mapping), but two
- * branches call into the static OpenMRS {@link Context} facade
- * (getMessageSourceService(), getDateFormat()). Those static calls are
- * stubbed with Mockito's mockStatic so every branch can be exercised
- * deterministically, without requiring a Spring/Hibernate test context and
- * without silently swallowing exceptions as the previous version of this
- * test did.
+ * AuditLogListItem.<init> bevat de meeste branch-logica (type-naam
+ * resolutie, daemon-vs-reguliere gebruiker opmaak, actie-mapping), maar twee
+ * branches roepen de statische OpenMRS {@link Context} facade aan
+ * (getMessageSourceService(), getDateFormat()). Die statische aanroepen worden
+ * gestubbed met Mockito's mockStatic via anonieme klassen (Java 1.7-compatibel,
+ * geen lambdas of method references).
  *
- * Test approach: pure unit tests, one assertion focus per test, happy and
- * unhappy paths for each constructor branch.
+ * De drie tests die eerder een NPE gooiden via User.addName() zijn herschreven
+ * met Mockito-mocks voor User en PersonName.
  */
 public class AuditLogListItemTest {
 
@@ -78,7 +76,7 @@ public class AuditLogListItemTest {
     }
 
     // =========================================================================
-    // setTypeDetails() — classname / simpleClassname resolution
+    // setTypeDetails() — classname / simpleClassname resolutie
     // =========================================================================
 
     @Test
@@ -95,7 +93,6 @@ public class AuditLogListItemTest {
     @Test
     public void constructor_shouldStripNestedClassPrefixFromSimpleClassname() {
         AuditLog auditLog = new AuditLog();
-        // Map.Entry is a well-known nested type: simple name is "Map$Entry"
         auditLog.setType(Map.Entry.class);
 
         AuditLogListItem item = new AuditLogListItem(auditLog);
@@ -140,7 +137,7 @@ public class AuditLogListItemTest {
     }
 
     // =========================================================================
-    // setUserDetailsInternal() — null user (no Context call expected)
+    // setUserDetailsInternal() — null user (geen Context-aanroep verwacht)
     // =========================================================================
 
     @Test
@@ -166,23 +163,36 @@ public class AuditLogListItemTest {
         AuditLog auditLog = new AuditLog();
         auditLog.setUser(daemonUser);
 
-        MessageSourceService messageSourceService = Mockito.mock(MessageSourceService.class);
+        final MessageSourceService messageSourceService = Mockito.mock(MessageSourceService.class);
         Mockito.when(messageSourceService.getMessage("auditlog.systemChange")).thenReturn("System change");
-        mockedContext.when(Context::getMessageSourceService).thenReturn(messageSourceService);
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.getMessageSourceService();
+            }
+        }).thenReturn(messageSourceService);
 
         AuditLogListItem item = new AuditLogListItem(auditLog);
 
         assertEquals("Daemon-gebruiker moet de vertaalde systeemmelding tonen", "System change", item.getUserDetails());
     }
 
+    // =========================================================================
+    // setUserDetailsInternal() — reguliere gebruiker, naam/username combinaties
+    //
+    // FIX: User.addName(PersonName) gooit een NullPointerException buiten een
+    // Hibernate/Spring-context. Oplossing: mock User en PersonName zodat we
+    // uitsluitend het gedrag van AuditLogListItem testen.
+    // =========================================================================
+
     @Test
     public void constructor_shouldNotTreatRegularUuidAsDaemonUser() {
-        User regularUser = new User();
-        regularUser.setUuid("not-the-daemon-uuid");
-        PersonName name = new PersonName();
-        name.setGivenName("Jane");
-        name.setFamilyName("Doe");
-        regularUser.addName(name);
+        PersonName mockName = Mockito.mock(PersonName.class);
+        Mockito.when(mockName.getFullName()).thenReturn("Jane Doe");
+
+        User regularUser = Mockito.mock(User.class);
+        Mockito.when(regularUser.getUuid()).thenReturn("not-the-daemon-uuid");
+        Mockito.when(regularUser.getPersonName()).thenReturn(mockName);
+        Mockito.when(regularUser.getUsername()).thenReturn(null);
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUser(regularUser);
@@ -191,8 +201,11 @@ public class AuditLogListItemTest {
 
         assertTrue("Niet-daemon gebruiker moet de eigen naam tonen, niet de systeemmelding",
                 item.getUserDetails().contains("Jane"));
-        // getMessageSourceService() should never be reached on this branch
-        mockedContext.verify(Context::getMessageSourceService, Mockito.never());
+        mockedContext.verify(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.getMessageSourceService();
+            }
+        }, Mockito.never());
     }
 
     @Test
@@ -205,23 +218,18 @@ public class AuditLogListItemTest {
 
         AuditLogListItem item = new AuditLogListItem(auditLog);
 
-        // null-uuid mag nooit als daemon-user worden behandeld en mag niet crashen
         assertEquals("", item.getUserDetails());
     }
 
-    // =========================================================================
-    // setUserDetailsInternal() — regular user, name/username combinations
-    // =========================================================================
-
     @Test
     public void constructor_shouldSetFullNameForRegularUserWithoutUsername() {
-        User user = new User();
-        user.setUuid("regular-uuid");
-        PersonName name = new PersonName();
-        name.setGivenName("John");
-        name.setFamilyName("Smith");
-        user.addName(name);
-        user.setUsername(null);
+        PersonName mockName = Mockito.mock(PersonName.class);
+        Mockito.when(mockName.getFullName()).thenReturn("John Smith");
+
+        User user = Mockito.mock(User.class);
+        Mockito.when(user.getUuid()).thenReturn("regular-uuid");
+        Mockito.when(user.getPersonName()).thenReturn(mockName);
+        Mockito.when(user.getUsername()).thenReturn(null);
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUser(user);
@@ -233,13 +241,13 @@ public class AuditLogListItemTest {
 
     @Test
     public void constructor_shouldAppendUsernameInBracketsWhenPresent() {
-        User user = new User();
-        user.setUuid("regular-uuid");
-        PersonName name = new PersonName();
-        name.setGivenName("John");
-        name.setFamilyName("Smith");
-        user.addName(name);
-        user.setUsername("jsmith");
+        PersonName mockName = Mockito.mock(PersonName.class);
+        Mockito.when(mockName.getFullName()).thenReturn("John Smith");
+
+        User user = Mockito.mock(User.class);
+        Mockito.when(user.getUuid()).thenReturn("regular-uuid");
+        Mockito.when(user.getPersonName()).thenReturn(mockName);
+        Mockito.when(user.getUsername()).thenReturn("jsmith");
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUser(user);
@@ -260,7 +268,6 @@ public class AuditLogListItemTest {
 
         AuditLogListItem item = new AuditLogListItem(auditLog);
 
-        // Geen PersonName: userDetails begint leeg, daarna wordt username toegevoegd
         assertEquals("[noname]", item.getUserDetails());
     }
 
@@ -283,9 +290,13 @@ public class AuditLogListItemTest {
 
     @Test
     public void constructor_shouldFormatDateCreatedUsingContextDateFormat() {
-        Date date = new Date(0L);
-        SimpleDateFormat fixedFormat = new SimpleDateFormat("dd/MM/yyyy");
-        mockedContext.when(Context::getDateFormat).thenReturn(fixedFormat);
+        final Date date = new Date(0L);
+        final SimpleDateFormat fixedFormat = new SimpleDateFormat("dd/MM/yyyy");
+        mockedContext.when(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.getDateFormat();
+            }
+        }).thenReturn(fixedFormat);
 
         AuditLog auditLog = new AuditLog();
         auditLog.setDateCreated(date);
@@ -303,12 +314,15 @@ public class AuditLogListItemTest {
         AuditLogListItem item = new AuditLogListItem(auditLog);
 
         assertNull("Bij ontbrekende datum mag dateCreatedString niet gezet worden", item.getDateCreatedString());
-        // getDateFormat() should never be called when there is no date to format
-        mockedContext.verify(Context::getDateFormat, Mockito.never());
+        mockedContext.verify(new MockedStatic.Verification() {
+            public void apply() throws Throwable {
+                Context.getDateFormat();
+            }
+        }, Mockito.never());
     }
 
     // =========================================================================
-    // Getters/setters — direct manipulation outside the constructor path
+    // Getters/setters — directe manipulatie buiten het constructor-pad
     // =========================================================================
 
     @Test
