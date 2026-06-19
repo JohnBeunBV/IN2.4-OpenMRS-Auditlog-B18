@@ -36,26 +36,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 public class AuditLogServiceImpl extends BaseOpenmrsService implements AuditLogService {
-	
-	private AuditLogDAO dao;
-	
-	@Autowired
-	private AuditLogHelper helper;
-	
-	/**
-	 * @param dao the dao to set
-	 */
-	public void setDao(AuditLogDAO dao) {
-		this.dao = dao;
-	}
-	
-	/**
-	 * @param helper the helper to set
-	 */
-	public void setHelper(AuditLogHelper helper) {
-		this.helper = helper;
-	}
-	
+
+    private AuditLogDAO dao;
+
+    private final AuditLogHelper helper;
+
+    @Autowired
+    public AuditLogServiceImpl(AuditLogHelper helper) {
+        this.helper = helper;
+    }
+
+    public void setDao(AuditLogDAO dao) {
+        this.dao = dao;
+    }
+
 	/**
 	 * @see AuditLogService#isAudited(Class)
 	 * @param clazz
