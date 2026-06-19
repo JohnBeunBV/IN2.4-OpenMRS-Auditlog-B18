@@ -42,29 +42,89 @@ public class AuditLogListItem {
 	 * Convenience constructor that created an {@link AuditLogListItem} from an {@link AuditLog}
 	 */
 	public AuditLogListItem(AuditLog auditLog) {
+
+		if (auditLog == null) {
+			return;
+		}
+
 		auditLogId = auditLog.getAuditLogId();
-		classname = auditLog.getType().getName();
-		simpleClassname = auditLog.getType().getSimpleName();
-		//If it is a nested class, use the simple name of the nested class
-		if (simpleClassname.indexOf("$") > -1) {
-			simpleClassname = simpleClassname.substring(simpleClassname.indexOf("$") + 1);
-		}
+
+		setTypeDetails(auditLog);
+
 		identifier = auditLog.getIdentifier();
-		action = auditLog.getAction().toString();
-		if (auditLog.getUser() == null) {
-			if (auditLog.getUser().getUuid().equals(DAEMON_USER_UUID)) {
-				userDetails = Context.getMessageSourceService().getMessage(AuditLogConstants.MODULE_ID + ".systemChange");
-			} else {
-				if (auditLog.getUser().getPersonName() != null) {
-					userDetails = auditLog.getUser().getPersonName().getFullName();
-				}
-				if (StringUtils.isNotBlank(auditLog.getUser().getUsername())) {
-					userDetails = userDetails + "[" + auditLog.getUser().getUsername() + "]";
-				}
-			}
+
+		setActionDetails(auditLog);
+
+		setUserDetailsInternal(auditLog);
+
+		setDateCreatedDetails(auditLog);
+	}
+
+	private void setTypeDetails(AuditLog auditLog) {
+
+		if (auditLog.getType() == null) {
+			return;
 		}
-		
-		dateCreatedString = Context.getDateFormat().format(auditLog.getDateCreated());
+
+		classname = auditLog.getType().getName();
+
+		simpleClassname = auditLog.getType().getSimpleName();
+
+		if (simpleClassname.indexOf("$") > -1) {
+
+			simpleClassname =
+					simpleClassname.substring(simpleClassname.indexOf("$") + 1);
+		}
+	}
+
+	private void setActionDetails(AuditLog auditLog) {
+
+		if (auditLog.getAction() != null) {
+			action = auditLog.getAction().toString();
+		}
+	}
+
+	private void setUserDetailsInternal(AuditLog auditLog) {
+
+		if (auditLog.getUser() == null) {
+			return;
+		}
+
+		if (isDaemonUser(auditLog)) {
+
+			userDetails =
+					Context.getMessageSourceService().getMessage(
+							AuditLogConstants.MODULE_ID + ".systemChange");
+
+			return;
+		}
+
+		if (auditLog.getUser().getPersonName() != null) {
+
+			userDetails =
+					auditLog.getUser().getPersonName().getFullName();
+		}
+
+		if (StringUtils.isNotBlank(auditLog.getUser().getUsername())) {
+
+			userDetails =
+					userDetails + "[" + auditLog.getUser().getUsername() + "]";
+		}
+	}
+
+	private boolean isDaemonUser(AuditLog auditLog) {
+
+		return auditLog.getUser().getUuid() != null
+				&& auditLog.getUser().getUuid().equals(DAEMON_USER_UUID);
+	}
+
+	private void setDateCreatedDetails(AuditLog auditLog) {
+
+		if (auditLog.getDateCreated() != null) {
+
+			dateCreatedString =
+					Context.getDateFormat().format(auditLog.getDateCreated());
+		}
 	}
 	
 	/**
